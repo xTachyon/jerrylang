@@ -1,0 +1,3 @@
+fn salut() {
+  let x = 5;
+}

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "JerryLang": {
+      "commandName": "Project",
+      "workingDirectory": "C:\\Users\\andre\\source\\repos\\SheepLang\\SheepLang\\working"
+    }
+  }
+}
