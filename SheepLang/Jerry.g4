@@ -7,8 +7,10 @@ LET: 'let';
 
 EQUAL: '=';
 PLUS: '+';
+MULTIPLY: '*';
 
 SEMI: ';';
+COMMA: ',';
 
 OPEN_PAREN: '(';
 CLOSED_PAREN: ')';
@@ -16,17 +18,27 @@ OPEN_BRACE: '{';
 CLOSED_BRACE: '}';
 
 IDENTIFIER: [a-zA-Z] [a-zA-Z0-9]*;
-NUMBER_SIMPLE: [0-9]+;
+fragment DIGIT: [0-9];
+fragment UNDERSCORE: '_';
+INTEGER_NORMAL: '-'? DIGIT (DIGIT | UNDERSCORE)*;
 
-number: NUMBER_SIMPLE;
+number: INTEGER_NORMAL;
 
 literal: number;
 
-expression: literal | expression PLUS expression;
+function_call:
+	IDENTIFIER OPEN_PAREN (expression (COMMA expression)*)? COMMA? CLOSED_PAREN;
+
+expression:
+	literal
+	| IDENTIFIER
+	| function_call
+	| left = expression binary_op = PLUS right = expression
+	| left = expression binary_op = MULTIPLY right = expression;
 
 assignment: LET? name = IDENTIFIER EQUAL expression;
 
-stmt: assignment SEMI | block;
+stmt: assignment SEMI | expression SEMI | block;
 
 block: OPEN_BRACE stmt* CLOSED_BRACE;
 

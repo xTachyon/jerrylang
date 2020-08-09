@@ -1,3 +1,7 @@
 fn salut() {
   let x = 5;
+  let y = 10;
+  x = x + 5;
+  x = x + y;
+  print(x);
 }

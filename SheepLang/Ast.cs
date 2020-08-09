@@ -22,13 +22,20 @@ namespace JerryLang {
 
     class Function : Item {
         public string Name { get; }
-        public Type ReturnType { get; }
+        public AstType ReturnType { get; }
+        public Block Block { get; }
+
+        public Function(string name, AstType returnType, Block block) {
+            Name = name;
+            ReturnType = returnType;
+            Block = block;
+        }
     }
 
-    class Document : AstElement {
+    class TranslationUnit : AstElement {
         public List<Function> Functions { get; }
 
-        public Document(List<Function> functions) {
+        public TranslationUnit(List<Function> functions) {
             Functions = functions;
         }
     }
@@ -60,10 +67,21 @@ namespace JerryLang {
 
     abstract class AstType : AstElement {
         public static readonly AstType Number = new BuiltinType(BuiltinTypeKind.Number);
+
+        public virtual bool IsUnit() {
+            return false;
+        }
+
+        public virtual bool IsNumber() {
+            return false;
+        }
     }
 
     enum BuiltinTypeKind {
-        Number
+        Unit,
+        Bool,
+        Number,
+        String
     }
 
     class BuiltinType : AstType {
@@ -71,6 +89,15 @@ namespace JerryLang {
 
         public BuiltinType(BuiltinTypeKind kind) {
             Kind = kind;
+        }
+
+        public override bool IsUnit() {
+            return Kind == BuiltinTypeKind.Unit;
+        }
+
+        public override bool IsNumber() {
+            return Kind == BuiltinTypeKind.Number;
+
         }
     }
 
@@ -80,15 +107,59 @@ namespace JerryLang {
     class Assignment : Statement {
         public Variable Variable { get; }
         public Expression Expression { get; }
+        public bool IsDeclaration { get; }
 
-        public Assignment(Variable variable, Expression expression) {
+        public Assignment(Variable variable, Expression expression, bool isDeclaration) {
             Variable = variable;
             Expression = expression;
+            IsDeclaration = isDeclaration;
         }
     }
 
     abstract class Expression : Statement {
         public abstract AstType GetAstType();
+    }
+
+    class FunctionCall : Expression {
+        public override AstType GetAstType() {
+            throw new NotImplementedException();
+        }
+    }
+
+    class VariableReference : Expression {
+        public Variable Variable { get; }
+
+        public VariableReference(Variable variable) {
+            Variable = variable;
+        }
+
+        public override AstType GetAstType() {
+            return Variable.Type;
+        }
+    }
+
+    enum BinaryOperationKind {
+        Plus,
+        Multiply
+    }
+
+    class BinaryOperation : Expression {
+        public Expression Left { get; }
+        public BinaryOperationKind Operation { get; }
+
+        public Expression Right { get; }
+        public AstType ResultType { get; }
+
+        public BinaryOperation(Expression left, BinaryOperationKind operation, Expression right, AstType resultType) {
+            Left = left;
+            Operation = operation;
+            Right = right;
+            ResultType = resultType;
+        }
+
+        public override AstType GetAstType() {
+            return ResultType;
+        }
     }
 
     abstract class LiteralExpression : Expression {
