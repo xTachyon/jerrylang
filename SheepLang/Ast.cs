@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JerryLang {
 
@@ -17,18 +18,23 @@ namespace JerryLang {
     }
 
     abstract class Item : AstElement {
-
     }
 
     class Function : Item {
         public string Name { get; }
         public AstType ReturnType { get; }
+        public List<(string, AstType)> Arguments { get; }
         public Block Block { get; }
 
-        public Function(string name, AstType returnType, Block block) {
+        public Function(string name, AstType returnType, List<(string, AstType)> arguments, Block block) {
             Name = name;
             ReturnType = returnType;
+            Arguments = arguments;
             Block = block;
+        }
+
+        public List<AstType> GetArgumentsTypes() {
+            return Arguments.Select(x => x.Item2).ToList();
         }
     }
 
@@ -121,8 +127,16 @@ namespace JerryLang {
     }
 
     class FunctionCall : Expression {
+        public Function Function { get; }
+        public List<Expression> Arguments { get; }
+
+        public FunctionCall(Function function, List<Expression> arguments) {
+            Function = function;
+            Arguments = arguments;
+        }
+
         public override AstType GetAstType() {
-            throw new NotImplementedException();
+            return Function.ReturnType;
         }
     }
 

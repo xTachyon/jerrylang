@@ -27,7 +27,7 @@ number: INTEGER_NORMAL;
 literal: number;
 
 function_call:
-	IDENTIFIER OPEN_PAREN (expression (COMMA expression)*)? COMMA? CLOSED_PAREN;
+	name = IDENTIFIER OPEN_PAREN (expression (COMMA expression)*)? COMMA? CLOSED_PAREN;
 
 expression:
 	literal
@@ -43,6 +43,9 @@ stmt: assignment SEMI | expression SEMI | block;
 block: OPEN_BRACE stmt* CLOSED_BRACE;
 
 function:
-	FN function_name = IDENTIFIER OPEN_PAREN CLOSED_PAREN block;
+	FN function_name = IDENTIFIER OPEN_PAREN CLOSED_PAREN (
+		SEMI
+		| body = block
+	);
 
 document: function*; 

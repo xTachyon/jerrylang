@@ -8,6 +8,7 @@ using System.Linq;
 namespace JerryLang {
     class JerryVisitor : JerryBaseVisitor<AstElement> {
         private List<Variable> Variables { get; } = new List<Variable>();
+        private List<Function> Functions { get; } = new List<Function>();
 
         private Variable FindVariable(string name) {
             return Variables.Select(x => x)
@@ -61,8 +62,18 @@ namespace JerryLang {
             throw new CompilerErrorException("unknown binary operation");
         }
 
+        private Function FindFunction(string name, List<AstType> args) {
+            return Functions.Where(x => x.Name == name && x.GetArgumentsTypes() == args).First();
+        }
+
         public AstElement Visit([NotNull] JerryParser.Function_callContext context) {
-            return null;
+            var name = context.name.Text;
+            var args = context.expression().Select(x => (Expression)VisitExpression(x)).ToList();
+            var argsTypes = args.Select(x => x.GetAstType()).ToList();
+
+            var function = FindFunction(name, argsTypes);
+
+            return new FunctionCall(function, args);
         }
 
         public override AstElement VisitExpression([NotNull] JerryParser.ExpressionContext context) {
@@ -144,7 +155,7 @@ namespace JerryLang {
             var returnType = new BuiltinType(BuiltinTypeKind.Unit);
             var block = (Block)VisitBlock(context.block());
 
-            return new Function(name, returnType, block);
+            return new Function(name, returnType, new List<(string, AstType)>(), block);
         }
     }
 }
