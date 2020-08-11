@@ -1,4 +1,4 @@
-﻿using LLVMSharp;
+﻿using LLVMSharp.Interop;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -8,61 +8,54 @@ using System.Runtime.InteropServices;
 namespace JerryLang {
     class CodeGenerator {
         private TranslationUnit Unit { get; }
+        private LLVMContextRef Context { get; set; }
         public LLVMModuleRef Module { get; }
         private LLVMBuilderRef Builder { get; set; }
         private LLVMDIBuilderRef DiBuilder { get; set; }
-        private Dictionary<Variable, LLVMValueRef> Variables { get; }
-        private Dictionary<Function, LLVMValueRef> Functions { get; }
-
-        [DllImport("libLLVM.dll", EntryPoint = "LLVMCreateDIBuilder", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-        public static extern IntPtr LLVMCreateDIBuilderRaw(IntPtr module);
-        private static LLVMDIBuilderRef LLVMCreateDIBuilder(LLVMModuleRef module) {
-            var result = LLVMCreateDIBuilderRaw(module.Pointer);
-            return new LLVMDIBuilderRef(result);
-        }
+        private Dictionary<AstElement, LLVMValueRef> Things { get; }
 
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
-            Module = LLVM.ModuleCreateWithName(name);
-            DiBuilder = LLVMCreateDIBuilder(Module);
-            Variables = new Dictionary<Variable, LLVMValueRef>();
-            Functions = new Dictionary<Function, LLVMValueRef>();
+            Context = LLVMContextRef.Create();
+            Module = Context.CreateModuleWithName(name);
+            Builder = Context.CreateBuilder();
+            DiBuilder = Module.CreateDIBuilder();
+
+            Things = new Dictionary<AstElement, LLVMValueRef>();
         }
 
         public void Generate() {
             foreach (var i in Unit.Functions) {
                 Generate(i);
             }
-            if (LLVM.VerifyModule(Module, LLVMVerifierFailureAction.LLVMPrintMessageAction, out string message)) {
-                throw new CompilerErrorException("invalid module" + message);
-            }
+            Module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
         }
 
         void Generate(Function function) {
             var returnType = Translate(function.ReturnType);
             var argsTypes = function.Arguments.Select(x => Translate(x.Item2)).ToArray();
-            var functionType = LLVM.FunctionType(returnType, argsTypes, false);
-            var llvmFunction = LLVM.AddFunction(Module, function.Name, functionType);
+            var functionType = LLVMTypeRef.CreateFunction(returnType, argsTypes, false);
+            var llvmFunction = Module.AddFunction(function.Name, functionType);
 
-            Functions[function] = llvmFunction;
+            Things[function] = llvmFunction;
 
-            LLVM.DIBuilderCreateFile(DiBuilder, "a", "b");
+            DiBuilder.CreateFile("a", "b");
 
             if (function.Block == null) {
                 return;
             }
 
-            LLVMBasicBlockRef entry = LLVM.AppendBasicBlock(llvmFunction, "entry");
-            Builder = LLVM.CreateBuilder();
-            LLVM.PositionBuilderAtEnd(Builder, entry);
+            LLVMBasicBlockRef entry = Context.AppendBasicBlock(llvmFunction, "entry");
+            Builder = Context.CreateBuilder();
+            Builder.PositionAtEnd(entry);
 
             Generate(function.Block);
 
             if (function.ReturnType.IsUnit()) {
-                LLVM.BuildRetVoid(Builder);
+                Builder.BuildRetVoid();
             }
 
-            if (LLVM.VerifyFunction(llvmFunction, LLVMVerifierFailureAction.LLVMPrintMessageAction)) {
+            if (!llvmFunction.VerifyFunction(LLVMVerifierFailureAction.LLVMPrintMessageAction)) {
                 throw new CompilerErrorException("invalid module");
             }
         }
@@ -82,13 +75,13 @@ namespace JerryLang {
         void Generate(Assignment assignment) {
             var llvmType = Translate(assignment.Variable.Type);
             if (assignment.IsDeclaration) {
-                Variables[assignment.Variable] = LLVM.BuildAlloca(Builder, llvmType, assignment.Variable.Name);
+                Things[assignment.Variable] = Builder.BuildAlloca(llvmType, assignment.Variable.Name);
             }
             
-            var alloca = Variables[assignment.Variable];
+            var alloca = Things[assignment.Variable];
             var expression = Generate(assignment.Expression);
 
-            LLVM.BuildStore(Builder, expression, alloca);
+            Builder.BuildStore(expression, alloca);
         }
 
         void Generate(Block block) {
@@ -112,17 +105,17 @@ namespace JerryLang {
         }
 
         LLVMValueRef Generate(FunctionCall expression) {
-            var llvmFunction = Functions[expression.Function];
+            var llvmFunction = Things[expression.Function];
             var args = expression.Arguments.Select(x => Generate(x)).ToArray();
             var name = expression.Function.ReturnType.IsUnit() ? "" : expression.Function.Name;
 
-            var call = LLVM.BuildCall(Builder, llvmFunction, args, name);
+            var call = Builder.BuildCall(llvmFunction, args, name);
             return call;
         }
 
         LLVMValueRef Generate(VariableReference expression) {
-            var variable = Variables[expression.Variable];
-            return LLVM.BuildLoad(Builder, variable, $"tmp_var_{expression.Variable.Name}_");
+            var variable = Things[expression.Variable];
+            return Builder.BuildLoad(variable, $"tmp_var_{expression.Variable.Name}_");
         }
 
         LLVMValueRef Generate(BinaryOperation expression) {
@@ -131,9 +124,9 @@ namespace JerryLang {
 
             switch (expression.Operation) {
                 case BinaryOperationKind.Plus:
-                    return LLVM.BuildAdd(Builder, left, right, "tmp_add");
+                    return Builder.BuildAdd(left, right, "tmp_add");
                 case BinaryOperationKind.Multiply:
-                    return LLVM.BuildMul(Builder, left, right, "tmp_mul");
+                    return Builder.BuildMul(left, right, "tmp_mul");
                 default:
                     break;
             }
@@ -143,7 +136,7 @@ namespace JerryLang {
 
         LLVMValueRef Generate(NumberLiteralExpression expression) {
             var type = Translate(expression.GetAstType());
-            return LLVM.ConstInt(type, (ulong)expression.Number, true);
+            return LLVMValueRef.CreateConstInt(type, (ulong)expression.Number, true);
         }
 
         LLVMTypeRef Translate(AstType type) {
@@ -156,11 +149,11 @@ namespace JerryLang {
         LLVMTypeRef Translate(BuiltinType type) {
             switch (type.Kind) {
                 case BuiltinTypeKind.Unit:
-                    return LLVMTypeRef.VoidType();
+                    return Context.VoidType;
                 case BuiltinTypeKind.Bool:
-                    return LLVMTypeRef.Int1Type();
+                    return Context.Int1Type;
                 case BuiltinTypeKind.Number:
-                    return LLVMTypeRef.Int64Type();
+                    return Context.Int64Type;
                 case BuiltinTypeKind.String:
                     break;
             }

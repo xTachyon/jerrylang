@@ -47,12 +47,10 @@ namespace JerryLang {
             } catch (Exception ex) {
                 e = ex;
             } finally {
-                var rawStr = LLVM.PrintModuleToString(codegen.Module);
-                var str = Marshal.PtrToStringUTF8(rawStr);
+                var str = codegen.Module.PrintToString();
                 Console.WriteLine(str);
 
-                LLVM.PrintModuleToFile(codegen.Module, "code.ll", out var error);
-                Console.WriteLine(error);
+                codegen.Module.PrintToFile("code.ll");
                 if (e != null) {
                     throw e;
                 }
