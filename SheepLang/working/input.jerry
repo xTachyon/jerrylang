@@ -1,7 +1,11 @@
+fn println_number(x: number);
+
 fn salut() {
   let x = 5;
   let y = 10;
   x = x + 5;
   x = x + y;
-  print(x);
+  println_number(5);
+  println_number(x);
+  println_number(5);
 }

@@ -50,6 +50,9 @@ namespace JerryLang {
                 var rawStr = LLVM.PrintModuleToString(codegen.Module);
                 var str = Marshal.PtrToStringUTF8(rawStr);
                 Console.WriteLine(str);
+
+                LLVM.PrintModuleToFile(codegen.Module, "code.ll", out var error);
+                Console.WriteLine(error);
                 if (e != null) {
                     throw e;
                 }

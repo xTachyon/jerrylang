@@ -24,7 +24,7 @@ namespace JerryLang {
         public string Name { get; }
         public AstType ReturnType { get; }
         public List<(string, AstType)> Arguments { get; }
-        public Block Block { get; }
+        public Block Block { get; set; }
 
         public Function(string name, AstType returnType, List<(string, AstType)> arguments, Block block) {
             Name = name;
@@ -72,7 +72,9 @@ namespace JerryLang {
     }
 
     abstract class AstType : AstElement {
+        public static readonly AstType Bool = new BuiltinType(BuiltinTypeKind.Bool);
         public static readonly AstType Number = new BuiltinType(BuiltinTypeKind.Number);
+        public static readonly AstType String = new BuiltinType(BuiltinTypeKind.String);
 
         public virtual bool IsUnit() {
             return false;

@@ -1,20 +1,32 @@
-﻿using JerryLang;
-using LLVMSharp;
+﻿using LLVMSharp;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace JerryLang {
     class CodeGenerator {
         private TranslationUnit Unit { get; }
         public LLVMModuleRef Module { get; }
         private LLVMBuilderRef Builder { get; set; }
+        private LLVMDIBuilderRef DiBuilder { get; set; }
         private Dictionary<Variable, LLVMValueRef> Variables { get; }
+        private Dictionary<Function, LLVMValueRef> Functions { get; }
+
+        [DllImport("libLLVM.dll", EntryPoint = "LLVMCreateDIBuilder", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr LLVMCreateDIBuilderRaw(IntPtr module);
+        private static LLVMDIBuilderRef LLVMCreateDIBuilder(LLVMModuleRef module) {
+            var result = LLVMCreateDIBuilderRaw(module.Pointer);
+            return new LLVMDIBuilderRef(result);
+        }
 
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
             Module = LLVM.ModuleCreateWithName(name);
+            DiBuilder = LLVMCreateDIBuilder(Module);
             Variables = new Dictionary<Variable, LLVMValueRef>();
+            Functions = new Dictionary<Function, LLVMValueRef>();
         }
 
         public void Generate() {
@@ -28,8 +40,17 @@ namespace JerryLang {
 
         void Generate(Function function) {
             var returnType = Translate(function.ReturnType);
-            var functionType = LLVM.FunctionType(returnType, new LLVMTypeRef[0], false);
+            var argsTypes = function.Arguments.Select(x => Translate(x.Item2)).ToArray();
+            var functionType = LLVM.FunctionType(returnType, argsTypes, false);
             var llvmFunction = LLVM.AddFunction(Module, function.Name, functionType);
+
+            Functions[function] = llvmFunction;
+
+            LLVM.DIBuilderCreateFile(DiBuilder, "a", "b");
+
+            if (function.Block == null) {
+                return;
+            }
 
             LLVMBasicBlockRef entry = LLVM.AppendBasicBlock(llvmFunction, "entry");
             Builder = LLVM.CreateBuilder();
@@ -47,9 +68,15 @@ namespace JerryLang {
         }
 
         void Generate(Statement statement) {
-            if (statement is Assignment) {
-                Generate((Assignment)statement);
+            if (statement is Assignment assignment) {
+                Generate(assignment);
+                return;
+            } else if (statement is Expression expression) {
+                Generate(expression);
+                return;
             }
+
+            throw new CompilerErrorException("unknown stmt");
         }
 
         void Generate(Assignment assignment) {
@@ -71,22 +98,31 @@ namespace JerryLang {
         }
 
         LLVMValueRef Generate(Expression expression) {
-            if (expression is NumberLiteralExpression) {
-                return Generate((NumberLiteralExpression)expression);
-            }
-            if (expression is BinaryOperation) {
-                return Generate((BinaryOperation)expression);
-            }
-            if (expression is VariableReference) {
-                return Generate((VariableReference)expression);
+            if (expression is NumberLiteralExpression number) {
+                return Generate(number);
+            } else if (expression is BinaryOperation binary) {
+                return Generate(binary);
+            } else if (expression is VariableReference reference) {
+                return Generate(reference);
+            } else if (expression is FunctionCall call) {
+                return Generate(call);
             }
 
             throw new CompilerErrorException("unknown expression");
         }
 
+        LLVMValueRef Generate(FunctionCall expression) {
+            var llvmFunction = Functions[expression.Function];
+            var args = expression.Arguments.Select(x => Generate(x)).ToArray();
+            var name = expression.Function.ReturnType.IsUnit() ? "" : expression.Function.Name;
+
+            var call = LLVM.BuildCall(Builder, llvmFunction, args, name);
+            return call;
+        }
+
         LLVMValueRef Generate(VariableReference expression) {
             var variable = Variables[expression.Variable];
-            return LLVM.BuildLoad(Builder, variable, "tmp" + expression.Variable.Name);
+            return LLVM.BuildLoad(Builder, variable, $"tmp_var_{expression.Variable.Name}_");
         }
 
         LLVMValueRef Generate(BinaryOperation expression) {
@@ -95,9 +131,9 @@ namespace JerryLang {
 
             switch (expression.Operation) {
                 case BinaryOperationKind.Plus:
-                    return LLVM.BuildAdd(Builder, left, right, "tmpadd");
+                    return LLVM.BuildAdd(Builder, left, right, "tmp_add");
                 case BinaryOperationKind.Multiply:
-                    return LLVM.BuildMul(Builder, left, right, "tmpmul");
+                    return LLVM.BuildMul(Builder, left, right, "tmp_mul");
                 default:
                     break;
             }

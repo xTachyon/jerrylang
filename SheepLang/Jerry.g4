@@ -9,6 +9,7 @@ EQUAL: '=';
 PLUS: '+';
 MULTIPLY: '*';
 
+COLON: ':';
 SEMI: ';';
 COMMA: ',';
 
@@ -17,7 +18,7 @@ CLOSED_PAREN: ')';
 OPEN_BRACE: '{';
 CLOSED_BRACE: '}';
 
-IDENTIFIER: [a-zA-Z] [a-zA-Z0-9]*;
+IDENTIFIER: [a-zA-Z_] [a-zA-Z0-9_]*;
 fragment DIGIT: [0-9];
 fragment UNDERSCORE: '_';
 INTEGER_NORMAL: '-'? DIGIT (DIGIT | UNDERSCORE)*;
@@ -42,10 +43,11 @@ stmt: assignment SEMI | expression SEMI | block;
 
 block: OPEN_BRACE stmt* CLOSED_BRACE;
 
+argument: name = IDENTIFIER COLON type = IDENTIFIER;
+
 function:
-	FN function_name = IDENTIFIER OPEN_PAREN CLOSED_PAREN (
-		SEMI
-		| body = block
-	);
+	FN function_name = IDENTIFIER OPEN_PAREN (
+		argument (COMMA argument)*
+	)? CLOSED_PAREN (SEMI | body = block);
 
 document: function*; 

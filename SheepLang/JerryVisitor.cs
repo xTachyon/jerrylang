@@ -63,7 +63,7 @@ namespace JerryLang {
         }
 
         private Function FindFunction(string name, List<AstType> args) {
-            return Functions.Where(x => x.Name == name && x.GetArgumentsTypes() == args).First();
+            return Functions.Where(x => x.Name == name && x.GetArgumentsTypes().SequenceEqual(args)).First();
         }
 
         public AstElement Visit([NotNull] JerryParser.Function_callContext context) {
@@ -150,12 +150,33 @@ namespace JerryLang {
             return new TranslationUnit(functions);
         }
 
+        private AstType VisitType(string type) {
+            switch (type) {
+                case "bool":
+                    return AstType.Bool;
+                case "number":
+                    return AstType.Number;
+                case "string":
+                    return AstType.String;
+            }
+
+            throw new CompilerErrorException("unknown type");
+        }
+
         public override AstElement VisitFunction([NotNull] JerryParser.FunctionContext context) {
             var name = context.function_name.Text;
             var returnType = new BuiltinType(BuiltinTypeKind.Unit);
-            var block = (Block)VisitBlock(context.block());
 
-            return new Function(name, returnType, new List<(string, AstType)>(), block);
+            var args = context.argument().Select(x => (x.name.Text, VisitType(x.type.Text))).ToList();
+
+            Block block = null;
+            if (context.block() != null) {
+                block = (Block)VisitBlock(context.block());
+            }
+            
+            var result = new Function(name, returnType, args, block);
+            Functions.Add(result);
+            return result;
         }
     }
 }
