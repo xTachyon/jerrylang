@@ -31,6 +31,45 @@ namespace JerryLang {
             Module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
         }
 
+        LLVMMetadataRef TranslateMetadata(BuiltinType type) {
+            const uint DW_ATE_boolean = 0x02;
+            const uint DW_ATE_signed = 0x05;
+
+            switch (type.Kind) {
+                case BuiltinTypeKind.Unit:
+                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagPrototyped);
+                    return DiBuilder.CreateBasicType("unit", 1, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagPrototyped);
+                case BuiltinTypeKind.Bool:
+                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagPrototyped);
+                case BuiltinTypeKind.Number:
+                    return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagPrototyped);
+                case BuiltinTypeKind.String:
+                    break;
+            }
+
+            throw new CompilerErrorException("unknown builtin type");
+        }
+
+        LLVMMetadataRef TranslateMetadata(AstType type) {
+            if (type is BuiltinType builtin) {
+                return TranslateMetadata(builtin);
+            }
+
+            throw new CompilerErrorException("unknown type");
+        }
+
+        LLVMMetadataRef[] TranslateMetadataFunctionType(Function function) {
+            var list = new List<LLVMMetadataRef>();
+
+            var returnType = TranslateMetadata(function.ReturnType);
+            var args = function.Arguments.Select(x => TranslateMetadata(x.Item2)).ToList();
+
+            list.Add(returnType);
+            list.AddRange(args);
+
+            return list.ToArray();
+        }
+
         void Generate(Function function) {
             var returnType = Translate(function.ReturnType);
             var argsTypes = function.Arguments.Select(x => Translate(x.Item2)).ToArray();
@@ -38,12 +77,20 @@ namespace JerryLang {
             var llvmFunction = Module.AddFunction(function.Name, functionType);
 
             Things[function] = llvmFunction;
-
-            DiBuilder.CreateFile("a", "b");
-
             if (function.Block == null) {
                 return;
             }
+            {
+                var diFile = DiBuilder.CreateFile("a", "b");
+                var diFunctionType = TranslateMetadataFunctionType(function);
+                var subroutine = DiBuilder.CreateSubroutineType(diFile, diFunctionType, LLVMDIFlags.LLVMDIFlagPrototyped);
+                var isDefinition = Convert.ToInt32(function.Block != null);
+
+                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile, 2, subroutine, 1, isDefinition, 3, LLVMDIFlags.LLVMDIFlagZero, 0);
+
+                llvmFunction.SetSubprogram(diFunction);
+            }
+
 
             LLVMBasicBlockRef entry = Context.AppendBasicBlock(llvmFunction, "entry");
             Builder = Context.CreateBuilder();
