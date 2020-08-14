@@ -1,9 +1,7 @@
 ﻿using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
-using LLVMSharp;
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace JerryLang {
     class ErrorListener : IAntlrErrorListener<IToken> {

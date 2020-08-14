@@ -1,6 +1,11 @@
 fn println_number(x: number);
 
+fn neata() {
+  let z = 5;
+}
+
 fn salut() {
+  neata();
   let x = 5;
   let y = 10;
   x = x + 5;

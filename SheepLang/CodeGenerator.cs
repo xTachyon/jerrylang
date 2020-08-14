@@ -13,6 +13,7 @@ namespace JerryLang {
         private LLVMBuilderRef Builder { get; set; }
         private LLVMDIBuilderRef DiBuilder { get; set; }
         private Dictionary<AstElement, LLVMValueRef> Things { get; }
+        private LLVMMetadataRef CurrentFunction { get; set; }
 
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
@@ -20,14 +21,37 @@ namespace JerryLang {
             Module = Context.CreateModuleWithName(name);
             Builder = Context.CreateBuilder();
             DiBuilder = Module.CreateDIBuilder();
-
             Things = new Dictionary<AstElement, LLVMValueRef>();
+
+            AddFlagsToDiBuilder();
+
+            Module.SetTarget("x86_64-unknown-windows-msvc19.27.29110");
+        }
+
+        private void AddFlagsToDiBuilder() {
+            var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
+            DiBuilder.CreateCompileUnit(LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageC_plus_plus, diFile,
+                                        "clang version 10.0.0 ", 0, "", 0, "split",
+                                        LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, 0, 0);
+
+            
+            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "CodeView", IntAsMetadata(1));
+            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "Debug Info Version", IntAsMetadata(3));
+            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorError, "wchar_size", IntAsMetadata(2));
+            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "PIC Level", IntAsMetadata(2));
+        }
+
+        private LLVMMetadataRef IntAsMetadata(int value) {
+            var one = LLVMValueRef.CreateConstInt(Context.Int32Type, (ulong)value);
+            var oneMetadata = one.ValueAsMetadata();
+            return oneMetadata;
         }
 
         public void Generate() {
             foreach (var i in Unit.Functions) {
                 Generate(i);
             }
+            DiBuilder.DIBuilderFinalize();
             Module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
         }
 
@@ -81,12 +105,13 @@ namespace JerryLang {
                 return;
             }
             {
-                var diFile = DiBuilder.CreateFile("a", "b");
+                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
                 var diFunctionType = TranslateMetadataFunctionType(function);
                 var subroutine = DiBuilder.CreateSubroutineType(diFile, diFunctionType, LLVMDIFlags.LLVMDIFlagPrototyped);
                 var isDefinition = Convert.ToInt32(function.Block != null);
 
-                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile, 2, subroutine, 1, isDefinition, 3, LLVMDIFlags.LLVMDIFlagZero, 0);
+                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile, 2, subroutine, 0, isDefinition, 3, LLVMDIFlags.LLVMDIFlagZero, 0);
+                CurrentFunction = diFunction;
 
                 llvmFunction.SetSubprogram(diFunction);
             }
@@ -102,9 +127,9 @@ namespace JerryLang {
                 Builder.BuildRetVoid();
             }
 
-            if (!llvmFunction.VerifyFunction(LLVMVerifierFailureAction.LLVMPrintMessageAction)) {
-                throw new CompilerErrorException("invalid module");
-            }
+            //if (!llvmFunction.VerifyFunction(LLVMVerifierFailureAction.LLVMPrintMessageAction)) {
+            //    throw new CompilerErrorException("invalid function");
+            //}
         }
 
         void Generate(Statement statement) {
@@ -157,6 +182,13 @@ namespace JerryLang {
             var name = expression.Function.ReturnType.IsUnit() ? "" : expression.Function.Name;
 
             var call = Builder.BuildCall(llvmFunction, args, name);
+
+            {
+                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
+                var metadata = Context.CreateDebugLocation(5, 6, CurrentFunction, new LLVMMetadataRef());
+                call.SetMetadata(0, Context.MetadataAsValue(metadata));
+            }
+
             return call;
         }
 

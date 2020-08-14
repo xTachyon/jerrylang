@@ -18,6 +18,26 @@ namespace JerryLang {
                 LLVM.SetSubprogram(function, metadata); ;
             }
         }
+
+        public static void AddModuleFlag(this LLVMModuleRef module, LLVMModuleFlagBehavior behavior, string key, LLVMMetadataRef value) {
+            using var marshaledKey = new MarshaledString(key);
+            unsafe {
+                LLVM.AddModuleFlag(module, behavior, marshaledKey.Value, marshaledKey.SizeTLength, value);
+            }
+        }
+
+        public static void SetTarget(this LLVMModuleRef module, string target) {
+            using var marshaledTarget = new MarshaledString(target);
+            unsafe {
+                LLVM.SetTarget(module, marshaledTarget.Value);
+            }
+        }
+
+        public static LLVMMetadataRef ValueAsMetadata(this LLVMValueRef value) {
+            unsafe {
+                return LLVM.ValueAsMetadata(value);
+            }
+        }
     }
 
     internal unsafe struct MarshaledString : IDisposable {
@@ -41,6 +61,8 @@ namespace JerryLang {
         }
 
         public int Length { get; private set; }
+
+        public UIntPtr SizeTLength => (UIntPtr)Length; 
 
         public sbyte* Value { get; private set; }
 
