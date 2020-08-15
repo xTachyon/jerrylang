@@ -7,6 +7,7 @@ LET: 'let';
 
 EQUAL: '=';
 PLUS: '+';
+MINUS: '-';
 MULTIPLY: '*';
 
 COLON: ':';
@@ -35,6 +36,7 @@ expression:
 	| IDENTIFIER
 	| function_call
 	| left = expression binary_op = PLUS right = expression
+	| left = expression binary_op = MINUS right = expression
 	| left = expression binary_op = MULTIPLY right = expression;
 
 assignment: LET? name = IDENTIFIER EQUAL expression;

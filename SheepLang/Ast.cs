@@ -4,14 +4,38 @@ using System.Linq;
 
 namespace JerryLang {
 
-    [System.Serializable]
-    public class CompilerErrorException : System.Exception {
+    [Serializable]
+    public class CompilerErrorException : Exception {
         public CompilerErrorException() { }
         public CompilerErrorException(string message) : base(message) { }
-        public CompilerErrorException(string message, System.Exception inner) : base(message, inner) { }
+        public CompilerErrorException(string message, Exception inner) : base(message, inner) { }
         protected CompilerErrorException(
           System.Runtime.Serialization.SerializationInfo info,
           System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
+
+    class SourceFile {
+        public string Path { get; }
+
+        public SourceFile(string path) {
+            Path = path;
+        }
+    }
+
+    class SourceLocation {
+        public int StartOffset { get; }
+        public int Size { get; }
+        public int Line { get; }
+        public int Column { get; }
+        public SourceFile File { get; }
+
+        public SourceLocation(int startOffset, int size, int line, int column, SourceFile file) {
+            StartOffset = startOffset;
+            Size = size;
+            Line = line;
+            Column = column;
+            File = file;
+        }
     }
 
     abstract class AstElement {
@@ -21,12 +45,14 @@ namespace JerryLang {
     }
 
     class Function : Item {
+        public SourceLocation SourceLocation { get; }
         public string Name { get; }
         public AstType ReturnType { get; }
         public List<(string, AstType)> Arguments { get; }
         public Block Block { get; set; }
 
-        public Function(string name, AstType returnType, List<(string, AstType)> arguments, Block block) {
+        public Function(SourceLocation sourceLocation, string name, AstType returnType, List<(string, AstType)> arguments, Block block) {
+            SourceLocation = sourceLocation;
             Name = name;
             ReturnType = returnType;
             Arguments = arguments;
@@ -113,11 +139,13 @@ namespace JerryLang {
     }
 
     class Assignment : Statement {
+        public SourceLocation SourceLocation { get; }
         public Variable Variable { get; }
         public Expression Expression { get; }
         public bool IsDeclaration { get; }
 
-        public Assignment(Variable variable, Expression expression, bool isDeclaration) {
+        public Assignment(SourceLocation sourceLocation, Variable variable, Expression expression, bool isDeclaration) {
+            SourceLocation = sourceLocation;
             Variable = variable;
             Expression = expression;
             IsDeclaration = isDeclaration;
@@ -129,10 +157,12 @@ namespace JerryLang {
     }
 
     class FunctionCall : Expression {
+        public SourceLocation SourceLocation { get; }
         public Function Function { get; }
         public List<Expression> Arguments { get; }
 
-        public FunctionCall(Function function, List<Expression> arguments) {
+        public FunctionCall(SourceLocation sourceLocation, Function function, List<Expression> arguments) {
+            SourceLocation = sourceLocation;
             Function = function;
             Arguments = arguments;
         }
@@ -156,17 +186,20 @@ namespace JerryLang {
 
     enum BinaryOperationKind {
         Plus,
+        Minus,
         Multiply
     }
 
     class BinaryOperation : Expression {
+        public SourceLocation SourceLocation { get; }
         public Expression Left { get; }
         public BinaryOperationKind Operation { get; }
 
         public Expression Right { get; }
         public AstType ResultType { get; }
 
-        public BinaryOperation(Expression left, BinaryOperationKind operation, Expression right, AstType resultType) {
+        public BinaryOperation(SourceLocation sourceLocation, Expression left, BinaryOperationKind operation, Expression right, AstType resultType) {
+            SourceLocation = sourceLocation;
             Left = left;
             Operation = operation;
             Right = right;

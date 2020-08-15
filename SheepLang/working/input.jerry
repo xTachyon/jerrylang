@@ -1,16 +1,15 @@
 fn println_number(x: number);
 
 fn neata() {
-  let z = 5;
+  let hhh = 23;
+  println_number(hhh);
 }
 
 fn salut() {
   neata();
-  let x = 5;
-  let y = 10;
-  x = x + 5;
-  x = x + y;
-  println_number(5);
+  let x = 10;
+  let y = 5;
+  x = x - y;
+  x = x + 10;
   println_number(x);
-  println_number(5);
 }

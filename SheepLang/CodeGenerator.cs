@@ -14,6 +14,7 @@ namespace JerryLang {
         private LLVMDIBuilderRef DiBuilder { get; set; }
         private Dictionary<AstElement, LLVMValueRef> Things { get; }
         private LLVMMetadataRef CurrentFunction { get; set; }
+        private LLVMBasicBlockRef CurrentBasicBlock { get; set; }
 
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
@@ -33,7 +34,6 @@ namespace JerryLang {
             DiBuilder.CreateCompileUnit(LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageC_plus_plus, diFile,
                                         "clang version 10.0.0 ", 0, "", 0, "split",
                                         LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, 0, 0);
-
             
             Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "CodeView", IntAsMetadata(1));
             Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "Debug Info Version", IntAsMetadata(3));
@@ -61,12 +61,11 @@ namespace JerryLang {
 
             switch (type.Kind) {
                 case BuiltinTypeKind.Unit:
-                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagPrototyped);
-                    return DiBuilder.CreateBasicType("unit", 1, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagPrototyped);
+                    return DiBuilder.CreateBasicType("unit", 1, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.Bool:
-                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagPrototyped);
+                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.Number:
-                    return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagPrototyped);
+                    return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.String:
                     break;
             }
@@ -105,12 +104,16 @@ namespace JerryLang {
                 return;
             }
             {
+                var sourceLocation = function.SourceLocation;
+
                 var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
                 var diFunctionType = TranslateMetadataFunctionType(function);
                 var subroutine = DiBuilder.CreateSubroutineType(diFile, diFunctionType, LLVMDIFlags.LLVMDIFlagPrototyped);
                 var isDefinition = Convert.ToInt32(function.Block != null);
 
-                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile, 2, subroutine, 0, isDefinition, 3, LLVMDIFlags.LLVMDIFlagZero, 0);
+                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile,
+                                                          (uint)sourceLocation.Line, subroutine, 0, isDefinition,
+                                                          (uint)sourceLocation.Line, LLVMDIFlags.LLVMDIFlagZero, 0);
                 CurrentFunction = diFunction;
 
                 llvmFunction.SetSubprogram(diFunction);
@@ -118,6 +121,7 @@ namespace JerryLang {
 
 
             LLVMBasicBlockRef entry = Context.AppendBasicBlock(llvmFunction, "entry");
+            CurrentBasicBlock = entry;
             Builder = Context.CreateBuilder();
             Builder.PositionAtEnd(entry);
 
@@ -126,10 +130,6 @@ namespace JerryLang {
             if (function.ReturnType.IsUnit()) {
                 Builder.BuildRetVoid();
             }
-
-            //if (!llvmFunction.VerifyFunction(LLVMVerifierFailureAction.LLVMPrintMessageAction)) {
-            //    throw new CompilerErrorException("invalid function");
-            //}
         }
 
         void Generate(Statement statement) {
@@ -149,11 +149,30 @@ namespace JerryLang {
             if (assignment.IsDeclaration) {
                 Things[assignment.Variable] = Builder.BuildAlloca(llvmType, assignment.Variable.Name);
             }
-            
+
             var alloca = Things[assignment.Variable];
             var expression = Generate(assignment.Expression);
 
-            Builder.BuildStore(expression, alloca);
+            if (assignment.IsDeclaration) {
+                var sourceLocation = assignment.SourceLocation;
+                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
+                var diType = TranslateMetadata(assignment.Variable.Type);
+                var diLocation = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
+
+                var metadata = DiBuilder.CreateAutoVariable(CurrentFunction, assignment.Variable.Name, diFile,
+                                                            (uint)sourceLocation.Line, diType, false,
+                                                            LLVMDIFlags.LLVMDIFlagZero, 0);
+                var expr = DiBuilder.CreateExpression(new List<long>());
+
+                DiBuilder.InsertDeclareAtEnd(alloca, metadata, expr, diLocation, CurrentBasicBlock);
+            }
+
+            var store = Builder.BuildStore(expression, alloca);
+            if (!assignment.IsDeclaration) {
+                var sourceLocation = assignment.SourceLocation;
+                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
+                store.SetMetadata(0, Context.MetadataAsValue(metadata));
+            }
         }
 
         void Generate(Block block) {
@@ -184,8 +203,8 @@ namespace JerryLang {
             var call = Builder.BuildCall(llvmFunction, args, name);
 
             {
-                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
-                var metadata = Context.CreateDebugLocation(5, 6, CurrentFunction, new LLVMMetadataRef());
+                var sourceLocation = expression.SourceLocation;
+                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
                 call.SetMetadata(0, Context.MetadataAsValue(metadata));
             }
 
@@ -200,17 +219,20 @@ namespace JerryLang {
         LLVMValueRef Generate(BinaryOperation expression) {
             var left = Generate(expression.Left);
             var right = Generate(expression.Right);
-
-            switch (expression.Operation) {
-                case BinaryOperationKind.Plus:
-                    return Builder.BuildAdd(left, right, "tmp_add");
-                case BinaryOperationKind.Multiply:
-                    return Builder.BuildMul(left, right, "tmp_mul");
-                default:
-                    break;
+            var value = expression.Operation switch
+            {
+                BinaryOperationKind.Plus => Builder.BuildAdd(left, right, "tmp_add"),
+                BinaryOperationKind.Minus => Builder.BuildSub(left, right, "tmp_sub"),
+                BinaryOperationKind.Multiply => Builder.BuildMul(left, right, "tmp_mul"),
+                _ => throw new CompilerErrorException("unknown binary op"),
+            };
+            {
+                var sourceLocation = expression.SourceLocation;
+                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
+                value.SetMetadata(0, Context.MetadataAsValue(metadata));
             }
 
-            throw new CompilerErrorException("unknown binary op");
+            return value;
         }
 
         LLVMValueRef Generate(NumberLiteralExpression expression) {

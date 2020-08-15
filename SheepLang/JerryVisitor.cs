@@ -1,4 +1,4 @@
-﻿using Antlr4.Runtime.Atn;
+﻿using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using System;
@@ -9,6 +9,11 @@ namespace JerryLang {
     class JerryVisitor : JerryBaseVisitor<AstElement> {
         private List<Variable> Variables { get; } = new List<Variable>();
         private List<Function> Functions { get; } = new List<Function>();
+        private SourceFile File { get; }
+
+        public JerryVisitor(SourceFile file) {
+            File = file;
+        }
 
         private Variable FindVariable(string name) {
             return Variables.Select(x => x)
@@ -30,6 +35,9 @@ namespace JerryLang {
             if (context.PLUS() != null) {
                 return BinaryOperationKind.Plus;
             }
+            if (context.MINUS() != null) {
+                return BinaryOperationKind.Minus;
+            }
             if (context.MULTIPLY() != null) {
                 return BinaryOperationKind.Multiply;
             }
@@ -40,6 +48,7 @@ namespace JerryLang {
         private bool IsNumberBinaryOperator(BinaryOperationKind kind) {
             switch (kind) {
                 case BinaryOperationKind.Plus:
+                case BinaryOperationKind.Minus:
                 case BinaryOperationKind.Multiply:
                     return true;
                 default:
@@ -56,7 +65,7 @@ namespace JerryLang {
             var rightType = right.GetAstType();
 
             if (IsNumberBinaryOperator(operation) && leftType.IsNumber() && leftType == rightType) {
-                return new BinaryOperation(left, operation, right, leftType);
+                return new BinaryOperation(GetSourceLocation(context), left, operation, right, leftType);
             }
 
             throw new CompilerErrorException("unknown binary operation");
@@ -73,7 +82,7 @@ namespace JerryLang {
 
             var function = FindFunction(name, argsTypes);
 
-            return new FunctionCall(function, args);
+            return new FunctionCall(GetSourceLocation(context), function, args);
         }
 
         public override AstElement VisitExpression([NotNull] JerryParser.ExpressionContext context) {
@@ -112,7 +121,7 @@ namespace JerryLang {
                 Variables.Add(variable);
             }
 
-            return new Assignment(variable, expression, isNew);
+            return new Assignment(GetSourceLocation(context), variable, expression, isNew);
         }
 
         public override AstElement VisitLiteral([NotNull] JerryParser.LiteralContext context) {
@@ -173,10 +182,23 @@ namespace JerryLang {
             if (context.block() != null) {
                 block = (Block)VisitBlock(context.block());
             }
-            
-            var result = new Function(name, returnType, args, block);
+
+            var result = new Function(GetSourceLocation(context), name, returnType, args, block);
             Functions.Add(result);
             return result;
+        }
+
+        private SourceLocation GetSourceLocation(ParserRuleContext parser) {
+            return GetSourceLocation(parser.Start, parser.Stop);
+        }
+
+        private SourceLocation GetSourceLocation(IToken start, IToken stop) {
+            var startIndex = start.StartIndex;
+            var stopIndex = stop.StopIndex;
+            var line = start.Line;
+            var column = start.Column;
+
+            return new SourceLocation(startIndex, stopIndex - startIndex, line, column, File);
         }
     }
 }

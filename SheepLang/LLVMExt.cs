@@ -1,5 +1,6 @@
 ﻿using LLVMSharp.Interop;
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -10,6 +11,42 @@ namespace JerryLang {
             var nameLength = (uint)marshaledName.Length;
             unsafe {
                 return LLVM.DIBuilderCreateBasicType(builder, marshaledName.Value, (UIntPtr)marshaledName.Length, sizeInBits, encoding, flags);
+            }
+        }
+
+        public static LLVMMetadataRef CreateAutoVariable(this LLVMDIBuilderRef builder, LLVMMetadataRef scope, string name, LLVMMetadataRef file,
+                uint line, LLVMMetadataRef type, bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits) {
+            using var marshaledName = new MarshaledString(name);
+            unsafe {
+                return LLVM.DIBuilderCreateAutoVariable(builder, scope, marshaledName.Value, marshaledName.SizeTLength,
+                                                        file, line, type, Convert.ToInt32(alwaysPreserve), flags,
+                                                        alignInBits);
+            }
+        }
+
+        public static LLVMMetadataRef CreateConstantValueExpression(this LLVMDIBuilderRef builder, long value) {
+            unsafe {
+                return LLVM.DIBuilderCreateConstantValueExpression(builder, value);
+            }
+        }
+
+        public static LLVMMetadataRef CreateExpression(this LLVMDIBuilderRef builder, List<long> array) {
+            unsafe {
+                var memory = (long*)Marshal.AllocHGlobal(array.Count * 8);
+                // leak :(
+                for (var i = 0; i < array.Count; ++i) {
+                    var current = array[i];
+                    memory[i] = current;
+                }
+
+                return LLVM.DIBuilderCreateExpression(builder, memory, (UIntPtr)array.Count);
+            }
+        }
+
+        public static LLVMValueRef InsertDeclareAtEnd(this LLVMDIBuilderRef builder, LLVMValueRef storage, LLVMMetadataRef varInfo, LLVMMetadataRef expr,
+                LLVMMetadataRef debugLoc, LLVMBasicBlockRef block) {
+            unsafe {
+                return LLVM.DIBuilderInsertDeclareAtEnd(builder, storage, varInfo, expr, debugLoc, block);
             }
         }
 
