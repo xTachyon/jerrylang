@@ -121,7 +121,11 @@ namespace JerryLang {
                 Variables.Add(variable);
             }
 
-            return new Assignment(GetSourceLocation(context), variable, expression, isNew);
+            var sourceLocation = GetSourceLocation(context);
+            if (isNew) {
+                return new VariableDeclaration(sourceLocation, variable, expression);
+            }
+            return new Assignment(sourceLocation, variable, expression);
         }
 
         public override AstElement VisitLiteral([NotNull] JerryParser.LiteralContext context) {

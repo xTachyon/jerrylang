@@ -3,94 +3,33 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace JerryLang {
-    class CodeGenerator {
+    class CodeGenerator : IDisposable {
         private TranslationUnit Unit { get; }
         private LLVMContextRef Context { get; set; }
         public LLVMModuleRef Module { get; }
         private LLVMBuilderRef Builder { get; set; }
-        private LLVMDIBuilderRef DiBuilder { get; set; }
         private Dictionary<AstElement, LLVMValueRef> Things { get; }
-        private LLVMMetadataRef CurrentFunction { get; set; }
-        private LLVMBasicBlockRef CurrentBasicBlock { get; set; }
+        private DebugInfoGenerator DebugInfoGenerator { get; }
 
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
             Context = LLVMContextRef.Create();
             Module = Context.CreateModuleWithName(name);
             Builder = Context.CreateBuilder();
-            DiBuilder = Module.CreateDIBuilder();
+            DebugInfoGenerator = new DebugInfoGenerator(Module);
             Things = new Dictionary<AstElement, LLVMValueRef>();
-
-            AddFlagsToDiBuilder();
 
             Module.SetTarget("x86_64-unknown-windows-msvc19.27.29110");
         }
 
-        private void AddFlagsToDiBuilder() {
-            var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
-            DiBuilder.CreateCompileUnit(LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageC_plus_plus, diFile,
-                                        "clang version 10.0.0 ", 0, "", 0, "split",
-                                        LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, 0, 0);
-            
-            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "CodeView", IntAsMetadata(1));
-            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "Debug Info Version", IntAsMetadata(3));
-            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorError, "wchar_size", IntAsMetadata(2));
-            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "PIC Level", IntAsMetadata(2));
-        }
-
-        private LLVMMetadataRef IntAsMetadata(int value) {
-            var one = LLVMValueRef.CreateConstInt(Context.Int32Type, (ulong)value);
-            var oneMetadata = one.ValueAsMetadata();
-            return oneMetadata;
-        }
-
-        public void Generate() {
+        public LLVMModuleRef Generate() {
             foreach (var i in Unit.Functions) {
                 Generate(i);
             }
-            DiBuilder.DIBuilderFinalize();
-            Module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
-        }
 
-        LLVMMetadataRef TranslateMetadata(BuiltinType type) {
-            const uint DW_ATE_boolean = 0x02;
-            const uint DW_ATE_signed = 0x05;
-
-            switch (type.Kind) {
-                case BuiltinTypeKind.Unit:
-                    return DiBuilder.CreateBasicType("unit", 1, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
-                case BuiltinTypeKind.Bool:
-                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagZero);
-                case BuiltinTypeKind.Number:
-                    return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
-                case BuiltinTypeKind.String:
-                    break;
-            }
-
-            throw new CompilerErrorException("unknown builtin type");
-        }
-
-        LLVMMetadataRef TranslateMetadata(AstType type) {
-            if (type is BuiltinType builtin) {
-                return TranslateMetadata(builtin);
-            }
-
-            throw new CompilerErrorException("unknown type");
-        }
-
-        LLVMMetadataRef[] TranslateMetadataFunctionType(Function function) {
-            var list = new List<LLVMMetadataRef>();
-
-            var returnType = TranslateMetadata(function.ReturnType);
-            var args = function.Arguments.Select(x => TranslateMetadata(x.Item2)).ToList();
-
-            list.Add(returnType);
-            list.AddRange(args);
-
-            return list.ToArray();
+            return Module;
         }
 
         void Generate(Function function) {
@@ -103,25 +42,10 @@ namespace JerryLang {
             if (function.Block == null) {
                 return;
             }
-            {
-                var sourceLocation = function.SourceLocation;
-
-                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
-                var diFunctionType = TranslateMetadataFunctionType(function);
-                var subroutine = DiBuilder.CreateSubroutineType(diFile, diFunctionType, LLVMDIFlags.LLVMDIFlagPrototyped);
-                var isDefinition = Convert.ToInt32(function.Block != null);
-
-                var diFunction = DiBuilder.CreateFunction(diFile, function.Name, function.Name, diFile,
-                                                          (uint)sourceLocation.Line, subroutine, 0, isDefinition,
-                                                          (uint)sourceLocation.Line, LLVMDIFlags.LLVMDIFlagZero, 0);
-                CurrentFunction = diFunction;
-
-                llvmFunction.SetSubprogram(diFunction);
-            }
-
+            DebugInfoGenerator.Generate(function, llvmFunction);
 
             LLVMBasicBlockRef entry = Context.AppendBasicBlock(llvmFunction, "entry");
-            CurrentBasicBlock = entry;
+            DebugInfoGenerator.CurrentBasicBlock = entry;
             Builder = Context.CreateBuilder();
             Builder.PositionAtEnd(entry);
 
@@ -130,9 +54,14 @@ namespace JerryLang {
             if (function.ReturnType.IsUnit()) {
                 Builder.BuildRetVoid();
             }
+
         }
 
         void Generate(Statement statement) {
+            if (statement is VariableDeclaration declaration) {
+                Generate(declaration);
+                return;
+            } else
             if (statement is Assignment assignment) {
                 Generate(assignment);
                 return;
@@ -144,35 +73,22 @@ namespace JerryLang {
             throw new CompilerErrorException("unknown stmt");
         }
 
-        void Generate(Assignment assignment) {
-            var llvmType = Translate(assignment.Variable.Type);
-            if (assignment.IsDeclaration) {
-                Things[assignment.Variable] = Builder.BuildAlloca(llvmType, assignment.Variable.Name);
-            }
+        void Generate(VariableDeclaration declaration) {
+            var llvmType = Translate(declaration.Variable.Type);
+            var alloca = Builder.BuildAlloca(llvmType, declaration.Variable.Name);
+            Things[declaration.Variable] = alloca;
 
-            var alloca = Things[assignment.Variable];
-            var expression = Generate(assignment.Expression);
-
-            if (assignment.IsDeclaration) {
-                var sourceLocation = assignment.SourceLocation;
-                var diFile = DiBuilder.CreateFile("input.jerry", @"C:\Users\andre\source\repos\SheepLang\SheepLang\working");
-                var diType = TranslateMetadata(assignment.Variable.Type);
-                var diLocation = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-
-                var metadata = DiBuilder.CreateAutoVariable(CurrentFunction, assignment.Variable.Name, diFile,
-                                                            (uint)sourceLocation.Line, diType, false,
-                                                            LLVMDIFlags.LLVMDIFlagZero, 0);
-                var expr = DiBuilder.CreateExpression(new List<long>());
-
-                DiBuilder.InsertDeclareAtEnd(alloca, metadata, expr, diLocation, CurrentBasicBlock);
-            }
-
+            var expression = Generate(declaration.Expression);
             var store = Builder.BuildStore(expression, alloca);
-            if (!assignment.IsDeclaration) {
-                var sourceLocation = assignment.SourceLocation;
-                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-                store.SetMetadata(0, Context.MetadataAsValue(metadata));
-            }
+
+            DebugInfoGenerator.Generate(declaration, alloca);
+        }
+
+        void Generate(Assignment assignment) {
+            var alloca = Things[assignment.Variable];
+            Generate(assignment.Expression);
+
+            DebugInfoGenerator.Generate(assignment, alloca);
         }
 
         void Generate(Block block) {
@@ -202,11 +118,7 @@ namespace JerryLang {
 
             var call = Builder.BuildCall(llvmFunction, args, name);
 
-            {
-                var sourceLocation = expression.SourceLocation;
-                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-                call.SetMetadata(0, Context.MetadataAsValue(metadata));
-            }
+            DebugInfoGenerator.Generate(expression, call);
 
             return call;
         }
@@ -226,11 +138,7 @@ namespace JerryLang {
                 BinaryOperationKind.Multiply => Builder.BuildMul(left, right, "tmp_mul"),
                 _ => throw new CompilerErrorException("unknown binary op"),
             };
-            {
-                var sourceLocation = expression.SourceLocation;
-                var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-                value.SetMetadata(0, Context.MetadataAsValue(metadata));
-            }
+            DebugInfoGenerator.Generate(expression, value);
 
             return value;
         }
@@ -259,6 +167,10 @@ namespace JerryLang {
                     break;
             }
             throw new CompilerErrorException("unknown builtin type");
+        }
+
+        public void Dispose() {
+            DebugInfoGenerator.Dispose();
         }
     }
 }

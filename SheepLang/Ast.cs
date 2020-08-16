@@ -138,17 +138,27 @@ namespace JerryLang {
     abstract class Statement : AstElement {
     }
 
+    class VariableDeclaration : Statement {
+        public SourceLocation SourceLocation { get; }
+        public Variable Variable { get; }
+        public Expression Expression { get; }
+
+        public VariableDeclaration(SourceLocation sourceLocation, Variable variable, Expression expression) {
+            SourceLocation = sourceLocation;
+            Variable = variable;
+            Expression = expression;
+        }
+    }
+
     class Assignment : Statement {
         public SourceLocation SourceLocation { get; }
         public Variable Variable { get; }
         public Expression Expression { get; }
-        public bool IsDeclaration { get; }
 
-        public Assignment(SourceLocation sourceLocation, Variable variable, Expression expression, bool isDeclaration) {
+        public Assignment(SourceLocation sourceLocation, Variable variable, Expression expression) {
             SourceLocation = sourceLocation;
             Variable = variable;
             Expression = expression;
-            IsDeclaration = isDeclaration;
         }
     }
 

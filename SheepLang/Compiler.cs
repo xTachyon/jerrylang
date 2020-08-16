@@ -1,5 +1,6 @@
 ﻿using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
+using LLVMSharp.Interop;
 using System;
 using System.IO;
 
@@ -38,21 +39,13 @@ namespace JerryLang {
         }
 
         public void Compile() {
-            var codegen = new CodeGenerator(Document, Filename);
-            Exception e = null;
-            try {
-                codegen.Generate();
-            } catch (Exception ex) {
-                e = ex;
-            } finally {
-                var str = codegen.Module.PrintToString();
-                Console.WriteLine(str);
-
-                codegen.Module.PrintToFile("code.ll");
-                if (e != null) {
-                    throw e;
-                }
+            LLVMModuleRef module;
+            using (var codegen = new CodeGenerator(Document, Filename)) {
+                module = codegen.Generate();
             }
+            module.PrintToFile("code.ll");
+            var str = module.PrintToString();
+            Console.WriteLine(str);
         }
     }
 }
