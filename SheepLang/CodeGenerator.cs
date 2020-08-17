@@ -16,12 +16,14 @@ namespace JerryLang {
         public CodeGenerator(TranslationUnit tu, string name) {
             Unit = tu;
             Context = LLVMContextRef.Create();
-            Module = Context.CreateModuleWithName(name);
+            var module = Context.CreateModuleWithName(name);
+            Module = module;
             Builder = Context.CreateBuilder();
             DebugInfoGenerator = new DebugInfoGenerator(Module);
             Things = new Dictionary<AstElement, LLVMValueRef>();
 
-            Module.SetTarget("x86_64-unknown-windows-msvc19.27.29110");
+            module.Target = "x86_64-unknown-windows-msvc19.27.29110";
+            module.DataLayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
         }
 
         public LLVMModuleRef Generate() {
@@ -54,6 +56,7 @@ namespace JerryLang {
             if (function.Block == null) {
                 return;
             }
+
             DebugInfoGenerator.Generate(function, llvmFunction);
 
             LLVMBasicBlockRef entry = Context.AppendBasicBlock(llvmFunction, "entry");
@@ -61,6 +64,13 @@ namespace JerryLang {
             Builder = Context.CreateBuilder();
             Builder.PositionAtEnd(entry);
 
+            var iterator = function.GetElements().Where(x => x is VariableDeclaration).Select(x => x as VariableDeclaration);
+            foreach (var i in iterator) {
+                var type = Translate(i.Variable.Type);
+                var alloca = Builder.BuildAlloca(type);
+                Things[i.Variable] = alloca;
+            }
+            
             Generate(function.Block);
 
             AddAttribute(llvmFunction, LLVMAttribute.NoInline);
@@ -88,9 +98,7 @@ namespace JerryLang {
         }
 
         void Generate(VariableDeclaration declaration) {
-            var llvmType = Translate(declaration.Variable.Type);
-            var alloca = Builder.BuildAlloca(llvmType, declaration.Variable.Name);
-            Things[declaration.Variable] = alloca;
+            var alloca = Things[declaration.Variable];
 
             DebugInfoGenerator.Generate(declaration, alloca);
          
@@ -139,7 +147,7 @@ namespace JerryLang {
 
         LLVMValueRef Generate(VariableReference expression) {
             var variable = Things[expression.Variable];
-            var load = Builder.BuildLoad(variable, $"tmp_var_{expression.Variable.Name}_");
+            var load = Builder.BuildLoad(variable, expression.Variable.Name);
             DebugInfoGenerator.Generate(expression, load);
             return load;
         }
@@ -149,9 +157,9 @@ namespace JerryLang {
             var right = Generate(expression.Right);
             var value = expression.Operation switch
             {
-                BinaryOperationKind.Plus => Builder.BuildAdd(left, right, "tmp_add"),
-                BinaryOperationKind.Minus => Builder.BuildSub(left, right, "tmp_sub"),
-                BinaryOperationKind.Multiply => Builder.BuildMul(left, right, "tmp_mul"),
+                BinaryOperationKind.Plus => Builder.BuildAdd(left, right, ""),
+                BinaryOperationKind.Minus => Builder.BuildSub(left, right, ""),
+                BinaryOperationKind.Multiply => Builder.BuildMul(left, right, ""),
                 _ => throw new CompilerErrorException("unknown binary op"),
             };
             DebugInfoGenerator.Generate(expression, value);

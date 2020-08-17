@@ -39,6 +39,9 @@ namespace JerryLang {
     }
 
     abstract class AstElement {
+        public virtual IEnumerable<AstElement> GetElements() {
+            yield break;
+        }
     }
 
     abstract class Item : AstElement {
@@ -61,6 +64,10 @@ namespace JerryLang {
 
         public List<AstType> GetArgumentsTypes() {
             return Arguments.Select(x => x.Item2).ToList();
+        }
+
+        public override IEnumerable<AstElement> GetElements() {
+            return Block.GetElements();
         }
     }
 
@@ -94,6 +101,15 @@ namespace JerryLang {
 
         public Block(List<Statement> statements) {
             Statements = statements;
+        }
+
+        public override IEnumerable<AstElement> GetElements() {
+            foreach (var stmt in Statements) {
+                yield return stmt;
+                foreach (var i in stmt.GetElements()) {
+                    yield return i;
+                }
+            }
         }
     }
 
