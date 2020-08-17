@@ -32,6 +32,18 @@ namespace JerryLang {
             return Module;
         }
 
+        private void AddAttribute(LLVMValueRef function, LLVMAttribute attribute) {
+            var name = attribute switch
+            {
+                LLVMAttribute.OptNone => "optnone",
+                LLVMAttribute.NoInline => "noinline",
+                _ => throw new CompilerErrorException("unknown attribute"),
+            };
+            var attrValue = LLVMExt.LookupAttribute(name);
+            var toAdd = Context.CreateEnumAttribute(attrValue);
+            function.AddAttributeAtIndex(unchecked((uint)-1), toAdd);
+        }
+
         void Generate(Function function) {
             var returnType = Translate(function.ReturnType);
             var argsTypes = function.Arguments.Select(x => Translate(x.Item2)).ToArray();
@@ -51,10 +63,12 @@ namespace JerryLang {
 
             Generate(function.Block);
 
+            AddAttribute(llvmFunction, LLVMAttribute.NoInline);
+            AddAttribute(llvmFunction, LLVMAttribute.OptNone);
+
             if (function.ReturnType.IsUnit()) {
                 Builder.BuildRetVoid();
             }
-
         }
 
         void Generate(Statement statement) {
@@ -78,17 +92,17 @@ namespace JerryLang {
             var alloca = Builder.BuildAlloca(llvmType, declaration.Variable.Name);
             Things[declaration.Variable] = alloca;
 
-            var expression = Generate(declaration.Expression);
-            var store = Builder.BuildStore(expression, alloca);
-
             DebugInfoGenerator.Generate(declaration, alloca);
+         
+            Generate(declaration.Assignment);
         }
 
         void Generate(Assignment assignment) {
             var alloca = Things[assignment.Variable];
-            Generate(assignment.Expression);
+            var expression = Generate(assignment.Expression);
+            var store = Builder.BuildStore(expression, alloca);
 
-            DebugInfoGenerator.Generate(assignment, alloca);
+            DebugInfoGenerator.Generate(assignment, store);
         }
 
         void Generate(Block block) {
@@ -125,7 +139,9 @@ namespace JerryLang {
 
         LLVMValueRef Generate(VariableReference expression) {
             var variable = Things[expression.Variable];
-            return Builder.BuildLoad(variable, $"tmp_var_{expression.Variable.Name}_");
+            var load = Builder.BuildLoad(variable, $"tmp_var_{expression.Variable.Name}_");
+            DebugInfoGenerator.Generate(expression, load);
+            return load;
         }
 
         LLVMValueRef Generate(BinaryOperation expression) {

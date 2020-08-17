@@ -44,7 +44,7 @@ namespace JerryLang {
 
             switch (type.Kind) {
                 case BuiltinTypeKind.Unit:
-                    return DiBuilder.CreateBasicType("unit", 1, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
+                    return new LLVMMetadataRef();
                 case BuiltinTypeKind.Bool:
                     return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.Number:
@@ -123,6 +123,12 @@ namespace JerryLang {
         }
 
         public void Generate(BinaryOperation expression, LLVMValueRef value) {
+            var sourceLocation = expression.SourceLocation;
+            var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
+            value.SetMetadata(0, Context.MetadataAsValue(metadata));
+        }
+
+        public void Generate(VariableReference expression, LLVMValueRef value) {
             var sourceLocation = expression.SourceLocation;
             var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
             value.SetMetadata(0, Context.MetadataAsValue(metadata));

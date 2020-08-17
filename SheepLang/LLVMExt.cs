@@ -5,6 +5,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace JerryLang {
+    enum LLVMAttribute {
+        OptNone,
+        NoInline
+    }
+
     static class LLVMExt {
         public static LLVMMetadataRef CreateBasicType(this LLVMDIBuilderRef builder, string name, ulong sizeInBits, uint encoding, LLVMDIFlags flags) {
             using var marshaledName = new MarshaledString(name);
@@ -73,6 +78,25 @@ namespace JerryLang {
         public static LLVMMetadataRef ValueAsMetadata(this LLVMValueRef value) {
             unsafe {
                 return LLVM.ValueAsMetadata(value);
+            }
+        }
+
+        public static LLVMAttributeRef CreateEnumAttribute(this LLVMContextRef context, uint kind) {
+            unsafe {
+                return LLVM.CreateEnumAttribute(context, kind, 0);
+            }
+        }
+
+        public static void AddAttributeAtIndex(this LLVMValueRef function, uint index, LLVMAttributeRef attribute) {
+            unsafe {
+                LLVM.AddAttributeAtIndex(function, index, attribute);
+            }
+        }
+
+        public static uint LookupAttribute(string name) {
+            using var marshaledName = new MarshaledString(name);
+            unsafe {
+                return LLVM.GetEnumAttributeKindForName(marshaledName.Value, marshaledName.SizeTLength);
             }
         }
     }

@@ -2,6 +2,8 @@
 
 WHITESPACE: [ \n\t\r]+ -> channel(1);
 
+COMMENT: '#' ~ [\r\n]* -> skip;
+
 FN: 'fn';
 LET: 'let';
 

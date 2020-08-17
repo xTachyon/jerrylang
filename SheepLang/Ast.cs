@@ -141,12 +141,12 @@ namespace JerryLang {
     class VariableDeclaration : Statement {
         public SourceLocation SourceLocation { get; }
         public Variable Variable { get; }
-        public Expression Expression { get; }
+        public Assignment Assignment { get; }
 
-        public VariableDeclaration(SourceLocation sourceLocation, Variable variable, Expression expression) {
+        public VariableDeclaration(SourceLocation sourceLocation, Variable variable, Assignment assignment) {
             SourceLocation = sourceLocation;
             Variable = variable;
-            Expression = expression;
+            Assignment = assignment;
         }
     }
 
@@ -183,9 +183,11 @@ namespace JerryLang {
     }
 
     class VariableReference : Expression {
+        public SourceLocation SourceLocation { get; }
         public Variable Variable { get; }
 
-        public VariableReference(Variable variable) {
+        public VariableReference(SourceLocation sourceLocation, Variable variable) {
+            SourceLocation = sourceLocation;
             Variable = variable;
         }
 

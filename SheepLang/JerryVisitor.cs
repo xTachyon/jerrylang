@@ -28,7 +28,7 @@ namespace JerryLang {
             if (variable == null) {
                 throw new CompilerErrorException("variable not found " + name);
             }
-            return new VariableReference(variable);
+            return new VariableReference(GetSourceLocation(context), variable);
         }
 
         private BinaryOperationKind VisitBinaryOperationKind([NotNull] JerryParser.ExpressionContext context) {
@@ -122,10 +122,11 @@ namespace JerryLang {
             }
 
             var sourceLocation = GetSourceLocation(context);
+            var assignment = new Assignment(sourceLocation, variable, expression);
             if (isNew) {
-                return new VariableDeclaration(sourceLocation, variable, expression);
+                return new VariableDeclaration(sourceLocation, variable, assignment);
             }
-            return new Assignment(sourceLocation, variable, expression);
+            return assignment;
         }
 
         public override AstElement VisitLiteral([NotNull] JerryParser.LiteralContext context) {
@@ -190,6 +191,10 @@ namespace JerryLang {
             var result = new Function(GetSourceLocation(context), name, returnType, args, block);
             Functions.Add(result);
             return result;
+        }
+
+        private SourceLocation GetSourceLocation(ITerminalNode node) {
+            return GetSourceLocation(node.Symbol, node.Symbol);
         }
 
         private SourceLocation GetSourceLocation(ParserRuleContext parser) {
