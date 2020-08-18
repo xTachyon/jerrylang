@@ -53,13 +53,15 @@ namespace JerryLang {
         public AstType ReturnType { get; }
         public List<(string, AstType)> Arguments { get; }
         public Block Block { get; set; }
+        public SourceLocation ClosedBrace { get; }
 
-        public Function(SourceLocation sourceLocation, string name, AstType returnType, List<(string, AstType)> arguments, Block block) {
+        public Function(SourceLocation sourceLocation, string name, AstType returnType, List<(string, AstType)> arguments, Block block, SourceLocation closedBrace) {
             SourceLocation = sourceLocation;
             Name = name;
             ReturnType = returnType;
             Arguments = arguments;
             Block = block;
+            ClosedBrace = closedBrace;
         }
 
         public List<AstType> GetArgumentsTypes() {
@@ -93,23 +95,6 @@ namespace JerryLang {
         public Variable(string name, AstType type) {
             Name = name;
             Type = type;
-        }
-    }
-
-    class Block : Statement {
-        public List<Statement> Statements { get; }
-
-        public Block(List<Statement> statements) {
-            Statements = statements;
-        }
-
-        public override IEnumerable<AstElement> GetElements() {
-            foreach (var stmt in Statements) {
-                yield return stmt;
-                foreach (var i in stmt.GetElements()) {
-                    yield return i;
-                }
-            }
         }
     }
 
@@ -152,27 +137,47 @@ namespace JerryLang {
     }
 
     abstract class Statement : AstElement {
+        public abstract SourceLocation Location { get; }
+    }
+
+    class Block : Statement {
+        public override SourceLocation Location { get; }
+        public List<Statement> Statements { get; }
+
+        public Block(SourceLocation location, List<Statement> statements) {
+            Location = location;
+            Statements = statements;
+        }
+
+        public override IEnumerable<AstElement> GetElements() {
+            foreach (var stmt in Statements) {
+                yield return stmt;
+                foreach (var i in stmt.GetElements()) {
+                    yield return i;
+                }
+            }
+        }
     }
 
     class VariableDeclaration : Statement {
-        public SourceLocation SourceLocation { get; }
+        public override SourceLocation Location { get; }
         public Variable Variable { get; }
         public Assignment Assignment { get; }
 
         public VariableDeclaration(SourceLocation sourceLocation, Variable variable, Assignment assignment) {
-            SourceLocation = sourceLocation;
+            Location = sourceLocation;
             Variable = variable;
             Assignment = assignment;
         }
     }
 
     class Assignment : Statement {
-        public SourceLocation SourceLocation { get; }
+        public override SourceLocation Location { get; }
         public Variable Variable { get; }
         public Expression Expression { get; }
 
         public Assignment(SourceLocation sourceLocation, Variable variable, Expression expression) {
-            SourceLocation = sourceLocation;
+            Location = sourceLocation;
             Variable = variable;
             Expression = expression;
         }
@@ -183,12 +188,12 @@ namespace JerryLang {
     }
 
     class FunctionCall : Expression {
-        public SourceLocation SourceLocation { get; }
+        public override SourceLocation Location { get; }
         public Function Function { get; }
         public List<Expression> Arguments { get; }
 
         public FunctionCall(SourceLocation sourceLocation, Function function, List<Expression> arguments) {
-            SourceLocation = sourceLocation;
+            Location = sourceLocation;
             Function = function;
             Arguments = arguments;
         }
@@ -199,11 +204,11 @@ namespace JerryLang {
     }
 
     class VariableReference : Expression {
-        public SourceLocation SourceLocation { get; }
+        public override SourceLocation Location { get; }
         public Variable Variable { get; }
 
         public VariableReference(SourceLocation sourceLocation, Variable variable) {
-            SourceLocation = sourceLocation;
+            Location = sourceLocation;
             Variable = variable;
         }
 
@@ -219,7 +224,7 @@ namespace JerryLang {
     }
 
     class BinaryOperation : Expression {
-        public SourceLocation SourceLocation { get; }
+        public override SourceLocation Location { get; }
         public Expression Left { get; }
         public BinaryOperationKind Operation { get; }
 
@@ -227,7 +232,7 @@ namespace JerryLang {
         public AstType ResultType { get; }
 
         public BinaryOperation(SourceLocation sourceLocation, Expression left, BinaryOperationKind operation, Expression right, AstType resultType) {
-            SourceLocation = sourceLocation;
+            Location = sourceLocation;
             Left = left;
             Operation = operation;
             Right = right;
@@ -243,9 +248,11 @@ namespace JerryLang {
     }
 
     class NumberLiteralExpression : LiteralExpression {
+        public override SourceLocation Location { get; }
         public long Number { get; }
 
-        public NumberLiteralExpression(long number) {
+        public NumberLiteralExpression(SourceLocation location, long number) {
+            Location = location;
             Number = number;
         }
 

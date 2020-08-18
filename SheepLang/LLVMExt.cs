@@ -99,6 +99,12 @@ namespace JerryLang {
                 return LLVM.GetEnumAttributeKindForName(marshaledName.Value, marshaledName.SizeTLength);
             }
         }
+
+        public static LLVMValueRef BuildMemSet(this LLVMBuilderRef builder, LLVMValueRef pointer, LLVMValueRef value, LLVMValueRef length, uint align) {
+            unsafe {
+                return LLVM.BuildMemSet(builder, pointer, value, length, align);
+            }
+        }
     }
 
     internal unsafe struct MarshaledString : IDisposable {

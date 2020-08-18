@@ -131,7 +131,7 @@ namespace JerryLang {
 
         public override AstElement VisitLiteral([NotNull] JerryParser.LiteralContext context) {
             var number = context.number().GetText();
-            return new NumberLiteralExpression(Convert.ToInt64(number));
+            return new NumberLiteralExpression(GetSourceLocation(context), Convert.ToInt64(number));
         }
 
         public override AstElement VisitStmt([NotNull] JerryParser.StmtContext context) {
@@ -155,7 +155,7 @@ namespace JerryLang {
 
         public override AstElement VisitBlock([NotNull] JerryParser.BlockContext context) {
             var stmts = context.stmt().Select(x => (Statement)VisitStmt(x)).ToList();
-            return new Block(stmts);
+            return new Block(GetSourceLocation(context), stmts);
         }
 
         public override AstElement VisitDocument([NotNull] JerryParser.DocumentContext context) {
@@ -165,16 +165,13 @@ namespace JerryLang {
         }
 
         private AstType VisitType(string type) {
-            switch (type) {
-                case "bool":
-                    return AstType.Bool;
-                case "number":
-                    return AstType.Number;
-                case "string":
-                    return AstType.String;
-            }
-
-            throw new CompilerErrorException("unknown type");
+            return type switch
+            {
+                "bool" => AstType.Bool,
+                "number" => AstType.Number,
+                "string" => AstType.String,
+                _ => throw new CompilerErrorException("unknown type"),
+            };
         }
 
         public override AstElement VisitFunction([NotNull] JerryParser.FunctionContext context) {
@@ -184,11 +181,13 @@ namespace JerryLang {
             var args = context.argument().Select(x => (x.name.Text, VisitType(x.type.Text))).ToList();
 
             Block block = null;
+            SourceLocation lastBrace = null;
             if (context.block() != null) {
                 block = (Block)VisitBlock(context.block());
+                lastBrace = GetSourceLocation(context.block().CLOSED_BRACE());
             }
 
-            var result = new Function(GetSourceLocation(context), name, returnType, args, block);
+            var result = new Function(GetSourceLocation(context), name, returnType, args, block, lastBrace);
             Functions.Add(result);
             return result;
         }

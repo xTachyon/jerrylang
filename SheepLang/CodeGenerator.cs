@@ -65,10 +65,18 @@ namespace JerryLang {
             Builder.PositionAtEnd(entry);
 
             var iterator = function.GetElements().Where(x => x is VariableDeclaration).Select(x => x as VariableDeclaration);
+            var variables = new List<(Variable, LLVMValueRef)>();
             foreach (var i in iterator) {
                 var type = Translate(i.Variable.Type);
                 var alloca = Builder.BuildAlloca(type);
                 Things[i.Variable] = alloca;
+                variables.Add((i.Variable, alloca));
+            }
+            var memsetValue = LLVMValueRef.CreateConstInt(Context.Int8Type, 0, false);
+            foreach (var (variable, pointer) in variables) {
+                var type = Translate(variable.Type);
+                var sizeOfType = type.SizeOf;
+                Builder.BuildMemSet(pointer, memsetValue, sizeOfType, 0);
             }
             
             Generate(function.Block);
@@ -77,7 +85,8 @@ namespace JerryLang {
             AddAttribute(llvmFunction, LLVMAttribute.OptNone);
 
             if (function.ReturnType.IsUnit()) {
-                Builder.BuildRetVoid();
+                var ret = Builder.BuildRetVoid();
+                DebugInfoGenerator.Generate(function.ClosedBrace, ret);
             }
         }
 

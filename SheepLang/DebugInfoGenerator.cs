@@ -22,7 +22,7 @@ namespace JerryLang {
 
         private void AddFlagsToDiBuilder() {
             var diFile = DiBuilder.CreateFile("file", @"directory");
-            var lang = (LLVMDWARFSourceLanguage)new Random().Next(0, 39);
+            var lang = (LLVMDWARFSourceLanguage)new Random().Next(0, (int)LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageBORLAND_Delphi - 1);
             DiBuilder.CreateCompileUnit(lang, diFile, "jerryc", 0, "", 0, "",
                                         LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, 0, 0);
 
@@ -96,9 +96,9 @@ namespace JerryLang {
         }
 
         public void Generate(VariableDeclaration declaration, LLVMValueRef alloca) {
-            var sourceLocation = declaration.SourceLocation;
+            var sourceLocation = declaration.Location;
 
-            var file = Translate(declaration.SourceLocation.File);
+            var file = Translate(declaration.Location.File);
             var type = Translate(declaration.Variable.Type);
             var location = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
 
@@ -110,33 +110,22 @@ namespace JerryLang {
             DiBuilder.InsertDeclareAtEnd(alloca, metadata, expr, location, CurrentBasicBlock);
         }
 
-        public void Generate(Assignment assignment, LLVMValueRef store) {
-            var sourceLocation = assignment.SourceLocation;
-            var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-            store.SetMetadata(0, Context.MetadataAsValue(metadata));
+        public void Generate(Statement statement, LLVMValueRef value) {
+            Generate(statement.Location, value);
         }
-
-        public void Generate(FunctionCall expression, LLVMValueRef call) {
-            var sourceLocation = expression.SourceLocation;
-            var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-            call.SetMetadata(0, Context.MetadataAsValue(metadata));
-        }
-
-        public void Generate(BinaryOperation expression, LLVMValueRef value) {
-            var sourceLocation = expression.SourceLocation;
-            var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-            value.SetMetadata(0, Context.MetadataAsValue(metadata));
-        }
-
-        public void Generate(VariableReference expression, LLVMValueRef value) {
-            var sourceLocation = expression.SourceLocation;
-            var metadata = Context.CreateDebugLocation((uint)sourceLocation.Line, (uint)sourceLocation.Column, CurrentFunction, new LLVMMetadataRef());
-            value.SetMetadata(0, Context.MetadataAsValue(metadata));
+        
+        public void Generate(SourceLocation sourceLocation, LLVMValueRef value) {
+            var location = CreateDebugLocation(sourceLocation);
+            value.SetMetadata(0, Context.MetadataAsValue(location));
         }
 
         public void Dispose() {
             DiBuilder.DIBuilderFinalize();
             Module.Verify(LLVMVerifierFailureAction.LLVMPrintMessageAction);
+        }
+
+        private LLVMMetadataRef CreateDebugLocation(SourceLocation location) {
+            return Context.CreateDebugLocation((uint)location.Line, 0, CurrentFunction, new LLVMMetadataRef());
         }
     }
 }
