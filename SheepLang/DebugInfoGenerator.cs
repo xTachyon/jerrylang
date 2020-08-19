@@ -11,18 +11,20 @@ namespace JerryLang {
         private LLVMDIBuilderRef DiBuilder { get; }
         private LLVMMetadataRef CurrentFunction { get; set; }
         public LLVMBasicBlockRef CurrentBasicBlock { get; set; }
+        private CodeGenerator CodeGenerator { get; }
 
-        public DebugInfoGenerator(LLVMModuleRef module) {
+        public DebugInfoGenerator(LLVMModuleRef module, CodeGenerator codeGenerator) {
             Context = module.Context;
             Module = module;
             DiBuilder = module.CreateDIBuilder();
+            CodeGenerator = codeGenerator;
 
             AddFlagsToDiBuilder();
         }
 
         private void AddFlagsToDiBuilder() {
             var diFile = DiBuilder.CreateFile("file", @"directory");
-            var lang = (LLVMDWARFSourceLanguage)new Random().Next(0, (int)LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageBORLAND_Delphi - 1);
+            var lang = (LLVMDWARFSourceLanguage)new Random().Next(0, (int)LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageFortran08 - 1);
             DiBuilder.CreateCompileUnit(lang, diFile, "jerryc", 0, "", 0, "",
                                         LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, 0, 0);
 
@@ -46,19 +48,46 @@ namespace JerryLang {
                 case BuiltinTypeKind.Unit:
                     return new LLVMMetadataRef();
                 case BuiltinTypeKind.Bool:
-                    return DiBuilder.CreateBasicType("bool", 1, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagZero);
+                    return DiBuilder.CreateBasicType("bool", 8, DW_ATE_boolean, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.Number:
                     return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.String:
-                    break;
+                    var pointee = DiBuilder.CreateBasicType("ch", 8, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
+                    return DiBuilder.CreatePointerType(pointee, 0, 0, 0, "ch*");
             }
 
             throw new CompilerErrorException("unknown builtin type");
         }
 
+        public LLVMMetadataRef Translate(StructType type) {
+            //return DiBuilder.CreateBasicType("bool", 1, 0x02, LLVMDIFlags.LLVMDIFlagZero);
+
+            var location = type.Item.SourceLocation;
+            var file = Translate(location.File);
+
+            var elements = new List<LLVMMetadataRef>();
+            ulong offset = 0;
+            foreach (var i in type.Fields) {
+                var fieldType = CodeGenerator.Translate(i.Type);
+                uint sizeInBits = 8;
+                uint alignInBits = 0;
+
+                var el = DiBuilder.CreateMemberType(file, i.Name, file, (uint)location.Line, sizeInBits, alignInBits,
+                    offset, LLVMDIFlags.LLVMDIFlagZero, Translate(i.Type));
+                elements.Add(el);
+
+                offset += sizeInBits;
+            }
+
+            return DiBuilder.CreateStructType(file, type.Name, file, (uint)location.Line, 0, 0, LLVMDIFlags.LLVMDIFlagZero,
+                new LLVMMetadataRef(), elements, 0, new LLVMMetadataRef(), type.Name);
+        }
+
         public LLVMMetadataRef Translate(AstType type) {
             if (type is BuiltinType builtin) {
                 return Translate(builtin);
+            } else if (type is StructType @struct) {
+                return Translate(@struct);
             }
 
             throw new CompilerErrorException("unknown type");

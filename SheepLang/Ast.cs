@@ -47,6 +47,28 @@ namespace JerryLang {
     abstract class Item : AstElement {
     }
 
+    class StructField {
+        public string Name { get; }
+        public AstType Type { get; }
+
+        public StructField(string name, AstType type) {
+            Name = name;
+            Type = type;
+        }
+    }
+
+    class Struct : Item {
+        public SourceLocation SourceLocation { get; }
+        public string Name { get; }
+        public List<StructField> Fields { get; }
+
+        public Struct(SourceLocation sourceLocation, string name, List<StructField> fields) {
+            SourceLocation = sourceLocation;
+            Name = name;
+            Fields = fields;
+        }
+    }
+
     class Function : Item {
         public SourceLocation SourceLocation { get; }
         public string Name { get; }
@@ -74,10 +96,10 @@ namespace JerryLang {
     }
 
     class TranslationUnit : AstElement {
-        public List<Function> Functions { get; }
+        public List<Item> Items { get; }
 
-        public TranslationUnit(List<Function> functions) {
-            Functions = functions;
+        public TranslationUnit(List<Item> items) {
+            Items = items;
         }
     }
 
@@ -109,6 +131,20 @@ namespace JerryLang {
 
         public virtual bool IsNumber() {
             return false;
+        }
+    }
+
+    class StructType : AstType {
+        public Struct Item { get; }
+        public string Name => Item.Name;
+        public List<StructField> Fields => Item.Fields;
+
+        public StructType(Struct item) {
+            Item = item;
+        }
+
+        public AstType[] GetFieldTypes() {
+            return Item.Fields.Select(x => x.Type).ToArray();
         }
     }
 
@@ -187,6 +223,22 @@ namespace JerryLang {
         public abstract AstType GetAstType();
     }
 
+    class StructInit : Expression {
+        public override SourceLocation Location { get; }
+        public StructType Type { get; }
+        public List<Expression> Expressions { get; }
+
+        public StructInit(SourceLocation location, StructType type, List<Expression> expressions) {
+            Location = location;
+            Type = type;
+            Expressions = expressions;
+        }
+
+        public override AstType GetAstType() {
+            return Type;
+        }
+    }
+
     class FunctionCall : Expression {
         public override SourceLocation Location { get; }
         public Function Function { get; }
@@ -247,13 +299,41 @@ namespace JerryLang {
     abstract class LiteralExpression : Expression {
     }
 
+    class BoolLiteralExpression : LiteralExpression {
+        public override SourceLocation Location { get; }
+        public bool Value { get; }
+
+        public BoolLiteralExpression(SourceLocation location, bool value) {
+            Location = location;
+            Value = value;
+        }
+
+        public override AstType GetAstType() {
+            return AstType.Bool;
+        }
+    }
+
+    class StringLiteralExpression : LiteralExpression {
+        public override SourceLocation Location { get; }
+        public string Value { get; }
+
+        public StringLiteralExpression(SourceLocation location, string value) {
+            Location = location;
+            Value = value;
+        }
+
+        public override AstType GetAstType() {
+            return AstType.String;
+        }
+    }
+
     class NumberLiteralExpression : LiteralExpression {
         public override SourceLocation Location { get; }
-        public long Number { get; }
+        public long Value { get; }
 
         public NumberLiteralExpression(SourceLocation location, long number) {
             Location = location;
-            Number = number;
+            Value = number;
         }
 
         public override AstType GetAstType() {

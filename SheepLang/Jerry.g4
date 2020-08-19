@@ -6,6 +6,11 @@ COMMENT: '#' ~ [\r\n]* -> skip;
 
 FN: 'fn';
 LET: 'let';
+STRUCT: 'struct';
+INIT: 'jerry';
+
+TRUE: 'true';
+FALSE: 'false';
 
 EQUAL: '=';
 PLUS: '+';
@@ -21,6 +26,12 @@ CLOSED_PAREN: ')';
 OPEN_BRACE: '{';
 CLOSED_BRACE: '}';
 
+fragment QUOTE: '"';
+STRING:
+	QUOTE
+		[ !'#$%&()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\]
+		* QUOTE;
+
 IDENTIFIER: [a-zA-Z_] [a-zA-Z0-9_]*;
 fragment DIGIT: [0-9];
 fragment UNDERSCORE: '_';
@@ -28,15 +39,23 @@ INTEGER_NORMAL: '-'? DIGIT (DIGIT | UNDERSCORE)*;
 
 number: INTEGER_NORMAL;
 
-literal: number;
+boolean: TRUE | FALSE;
+
+literal: number | STRING | boolean;
 
 function_call:
 	name = IDENTIFIER OPEN_PAREN (expression (COMMA expression)*)? COMMA? CLOSED_PAREN;
+
+struct_init:
+	INIT name = IDENTIFIER OPEN_PAREN (
+		expression (COMMA expression)
+	)? CLOSED_PAREN;
 
 expression:
 	literal
 	| IDENTIFIER
 	| function_call
+	| struct_init
 	| left = expression binary_op = PLUS right = expression
 	| left = expression binary_op = MINUS right = expression
 	| left = expression binary_op = MULTIPLY right = expression;
@@ -54,4 +73,13 @@ function:
 		argument (COMMA argument)*
 	)? CLOSED_PAREN (SEMI | body = block);
 
-document: function*; 
+struct_field: name = IDENTIFIER COLON type = IDENTIFIER;
+
+struct:
+	STRUCT name = IDENTIFIER OPEN_BRACE (
+		struct_field (COMMA struct_field)*
+	)? CLOSED_BRACE;
+
+item: function | struct;
+
+document: item*; 

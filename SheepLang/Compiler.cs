@@ -33,7 +33,7 @@ namespace JerryLang {
             parser.AddErrorListener(new ErrorListener());
 
             var document = parser.document();
-            var visitor = new JerryVisitor(new SourceFile(file));
+            var visitor = new AstCreator(new SourceFile(file));
 
             Document = (TranslationUnit)visitor.VisitDocument(document);
         }

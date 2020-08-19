@@ -105,6 +105,48 @@ namespace JerryLang {
                 return LLVM.BuildMemSet(builder, pointer, value, length, align);
             }
         }
+
+        public static LLVMMetadataRef CreatePointerType(this LLVMDIBuilderRef builder, LLVMMetadataRef pointeeTy,
+            ulong sizeInBits, uint alignInBits, uint AddressSpace, string name) {
+
+            using var nameM = new MarshaledString(name);
+            unsafe {
+                return LLVM.DIBuilderCreatePointerType(builder, pointeeTy, sizeInBits, alignInBits, AddressSpace, nameM.Value, nameM.SizeTLength);
+            }
+        }
+
+        public static LLVMMetadataRef CreateStructType(this LLVMDIBuilderRef builder, LLVMMetadataRef scope, string name,
+            LLVMMetadataRef file, uint lineNumber, ulong sizeInBits, uint alignInBits, LLVMDIFlags flags,
+            LLVMMetadataRef derivedFrom, List<LLVMMetadataRef> elements, uint runTimeLang, LLVMMetadataRef vTableHolder,
+            string uniqueId) {
+
+            using var nameM = new MarshaledString(name);
+            using var uniqueM = new MarshaledString(uniqueId);
+            unsafe {
+                var memory = (LLVMOpaqueMetadata**)Marshal.AllocHGlobal(elements.Count * sizeof(LLVMOpaqueMetadata*));
+                // leak :(
+                for (var i = 0; i < elements.Count; ++i) {
+                    var current = elements[i];
+                    memory[i] = current;
+                }
+                return LLVM.DIBuilderCreateStructType(
+                    builder, scope, nameM.Value, nameM.SizeTLength, file, lineNumber, sizeInBits, alignInBits, flags,
+                    derivedFrom, memory, (uint)elements.Count, runTimeLang, vTableHolder, uniqueM.Value,
+                    uniqueM.SizeTLength);
+            }
+        }
+
+        public static LLVMMetadataRef CreateMemberType(this LLVMDIBuilderRef builder, LLVMMetadataRef scope, string name,
+            LLVMMetadataRef file, uint lineNo, ulong sizeInBits, uint alignInBits, ulong offsetInBits, LLVMDIFlags flags,
+            LLVMMetadataRef type) {
+
+            using var nameM = new MarshaledString(name);
+            unsafe {
+                return LLVM.DIBuilderCreateMemberType(
+                    builder, scope, nameM.Value, nameM.SizeTLength, file, lineNo, sizeInBits, alignInBits, offsetInBits,
+                    flags, type);
+            }
+        }
     }
 
     internal unsafe struct MarshaledString : IDisposable {

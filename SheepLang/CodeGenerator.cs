@@ -19,7 +19,7 @@ namespace JerryLang {
             var module = Context.CreateModuleWithName(name);
             Module = module;
             Builder = Context.CreateBuilder();
-            DebugInfoGenerator = new DebugInfoGenerator(Module);
+            DebugInfoGenerator = new DebugInfoGenerator(Module, this);
             Things = new Dictionary<AstElement, LLVMValueRef>();
 
             module.Target = "x86_64-unknown-windows-msvc19.27.29110";
@@ -27,7 +27,7 @@ namespace JerryLang {
         }
 
         public LLVMModuleRef Generate() {
-            foreach (var i in Unit.Functions) {
+            foreach (var i in Unit.Items) {
                 Generate(i);
             }
 
@@ -78,7 +78,7 @@ namespace JerryLang {
                 var sizeOfType = type.SizeOf;
                 Builder.BuildMemSet(pointer, memsetValue, sizeOfType, 0);
             }
-            
+
             Generate(function.Block);
 
             AddAttribute(llvmFunction, LLVMAttribute.NoInline);
@@ -88,6 +88,17 @@ namespace JerryLang {
                 var ret = Builder.BuildRetVoid();
                 DebugInfoGenerator.Generate(function.ClosedBrace, ret);
             }
+        }
+
+        void Generate(Item item) {
+            if (item is Function function) {
+                Generate(function);
+                return;
+            } else if (item is Struct @struct) {
+                return;
+            }
+
+            throw new CompilerErrorException("unknown stmt");
         }
 
         void Generate(Statement statement) {
@@ -110,7 +121,7 @@ namespace JerryLang {
             var alloca = Things[declaration.Variable];
 
             DebugInfoGenerator.Generate(declaration, alloca);
-         
+
             Generate(declaration.Assignment);
         }
 
@@ -131,15 +142,30 @@ namespace JerryLang {
         LLVMValueRef Generate(Expression expression) {
             if (expression is NumberLiteralExpression number) {
                 return Generate(number);
+            } else if (expression is StringLiteralExpression str) {
+                return Generate(str);
+            } else if (expression is BoolLiteralExpression boolean) {
+                return Generate(boolean);
             } else if (expression is BinaryOperation binary) {
                 return Generate(binary);
             } else if (expression is VariableReference reference) {
                 return Generate(reference);
             } else if (expression is FunctionCall call) {
                 return Generate(call);
+            } else if (expression is StructInit init) {
+                return Generate(init);
             }
 
             throw new CompilerErrorException("unknown expression");
+        }
+
+        LLVMValueRef Generate(StructInit init) {
+            var last = Translate(init.Type).Undef;
+            for (int i = 0; i < init.Expressions.Count; ++i) {
+                var expression = Generate(init.Expressions[i]);
+                last = Builder.BuildInsertValue(last, expression, (uint)i);
+            }
+            return last;
         }
 
         LLVMValueRef Generate(FunctionCall expression) {
@@ -178,17 +204,36 @@ namespace JerryLang {
 
         LLVMValueRef Generate(NumberLiteralExpression expression) {
             var type = Translate(expression.GetAstType());
-            return LLVMValueRef.CreateConstInt(type, (ulong)expression.Number, true);
+            return LLVMValueRef.CreateConstInt(type, (ulong)expression.Value, true);
         }
 
-        LLVMTypeRef Translate(AstType type) {
-            if (type is BuiltinType) {
-                return Translate((BuiltinType)type);
+        LLVMValueRef Generate(StringLiteralExpression expression) {
+            var global = Builder.BuildGlobalString(expression.Value);
+            var gep = Builder.BuildInBoundsGEP(global, new LLVMValueRef[] { LLVMValueRef.CreateConstInt(Context.Int32Type, 0), LLVMValueRef.CreateConstInt(Context.Int32Type, 0) });
+
+            return gep;
+        }
+
+        LLVMValueRef Generate(BoolLiteralExpression expression) {
+            var type = Translate(expression.GetAstType());
+            return LLVMValueRef.CreateConstInt(type, Convert.ToUInt64(expression.Value), true);
+        }
+
+        public LLVMTypeRef Translate(AstType type) {
+            if (type is BuiltinType builtin) {
+                return Translate(builtin);
+            } else if (type is StructType @struct) {
+                return Translate(@struct);
             }
             throw new CompilerErrorException("unknown type");
         }
 
-        LLVMTypeRef Translate(BuiltinType type) {
+        public LLVMTypeRef Translate(StructType struuct) {
+            var types = struuct.GetFieldTypes().Select(x => Translate(x)).ToArray();
+            return Context.GetStructType(types, false);
+        }
+
+        public LLVMTypeRef Translate(BuiltinType type) {
             switch (type.Kind) {
                 case BuiltinTypeKind.Unit:
                     return Context.VoidType;
@@ -197,7 +242,7 @@ namespace JerryLang {
                 case BuiltinTypeKind.Number:
                     return Context.Int64Type;
                 case BuiltinTypeKind.String:
-                    break;
+                    return LLVMTypeRef.CreatePointer(Context.Int8Type, 0);
             }
             throw new CompilerErrorException("unknown builtin type");
         }

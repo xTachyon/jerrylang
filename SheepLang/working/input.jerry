@@ -1,15 +1,12 @@
 fn println_number(x: number);
+fn println_string(x: string);
 
-fn neata() {
-  let hhh = 23;
-  println_number(hhh);
+struct Joshua {
+  broke: bool,
+  rustdoc: bool
 }
 
 fn salut() {
-  neata();
-  let x = 10;
-  let y = 5;
-  x = x - y;
-  x = x + 10;
-  println_number(x);
+  let joshua = jerry Joshua(true, true);
+  let again = true;
 }
