@@ -2,7 +2,7 @@
   "profiles": {
     "JerryLang": {
       "commandName": "Project",
-      "workingDirectory": "C:\\Users\\andre\\source\\repos\\SheepLang\\SheepLang\\working",
+      "workingDirectory": "C:\\repos\\JerryLang\\JerryLang\\working",
       "nativeDebugging": true
     }
   }

@@ -4,9 +4,9 @@ using Antlr4.Runtime.Tree;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 
-namespace JerryLang {
+namespace JerryLang
+{
     class AstCreator {
         private List<Variable> Variables { get; } = new List<Variable>();
         private List<Function> Functions { get; } = new List<Function>();
@@ -59,8 +59,8 @@ namespace JerryLang {
         }
 
         private BinaryOperation VisitBinary([NotNull] JerryParser.ExpressionContext context) {
-            var left = VisitExpression(context.left);
-            var right = VisitExpression(context.right);
+            var left = Visit(context.left);
+            var right = Visit(context.right);
             var operation = VisitBinaryOperationKind(context);
 
             var leftType = left.GetAstType();
@@ -93,7 +93,7 @@ namespace JerryLang {
 
             foreach (var i in context.struct_init_field()) {
                 var fieldName = i.name.Text;
-                var expression = VisitExpression(i.value);
+                var expression = Visit(i.value);
                 exprMap[fieldName] = expression;
             }
 
@@ -128,10 +128,17 @@ namespace JerryLang {
         }
 
         public List<Expression> VisitExpressions([NotNull] IEnumerable<JerryParser.ExpressionContext> expressions) {
-            return expressions.Select(x => VisitExpression(x)).ToList();
+            return expressions.Select(x => Visit(x)).ToList();
         }
 
-        public Expression VisitExpression([NotNull] JerryParser.ExpressionContext context) {
+        public UnaryOperation Visit([NotNull] JerryParser.AddressofContext context) {
+            var subexpression = (VariableReference)Visit(context.expression());
+            var type = new PointerType(subexpression.GetAstType());
+
+            return new UnaryOperation(GetSourceLocation(context), UnaryOperator.AddressOf, subexpression.Variable, type);
+        }
+
+        public Expression Visit([NotNull] JerryParser.ExpressionContext context) {
             var literal = context.literal();
             if (literal != null) {
                 return VisitLiteral(literal);
@@ -151,13 +158,17 @@ namespace JerryLang {
             if (structInit != null) {
                 return Visit(structInit);
             }
+            var addressOf = context.addressof();
+            if (addressOf != null) {
+                return Visit(addressOf);
+            }
             throw new CompilerErrorException("unknown expression");
         }
 
-        public AstElement VisitAssignment([NotNull] JerryParser.AssignmentContext context) {
+        public Statement VisitAssignment([NotNull] JerryParser.AssignmentContext context) {
             var isNew = context.LET() != null;
             var name = context.name.Text;
-            var expression = VisitExpression(context.expression()) as Expression;
+            var expression = Visit(context.expression());
 
             var variable = FindVariable(name);
             if (isNew && variable != null) {
@@ -177,6 +188,18 @@ namespace JerryLang {
                 return new VariableDeclaration(sourceLocation, variable, assignment);
             }
             return assignment;
+        }
+
+        public Statement Visit([NotNull] JerryParser.Assignment_pointerContext context) {
+            var name = context.name.Text;
+            var expression = Visit(context.expression());
+
+            var variable = FindVariable(name);
+            if (!variable.Type.IsPointerOf(expression.GetAstType())) {
+                throw new CompilerErrorException($"pointer type doesn't match");
+            }
+
+            return new PointerAssignment(GetSourceLocation(context), variable, expression);
         }
 
         public LiteralExpression VisitLiteral([NotNull] JerryParser.LiteralContext context) {
@@ -203,17 +226,18 @@ namespace JerryLang {
             if (assignment != null) {
                 return VisitAssignment(assignment);
             }
-
+            var assignmentPointer = context.assignment_pointer();
+            if (assignmentPointer != null) {
+                return Visit(assignmentPointer);
+            }
             var block = context.block();
             if (block != null) {
                 return VisitBlock(block);
             }
-
             var expression = context.expression();
             if (expression != null) {
-                return VisitExpression(expression);
+                return Visit(expression);
             }
-
             throw new CompilerErrorException("unknown stmt");
         }
 

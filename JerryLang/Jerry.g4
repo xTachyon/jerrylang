@@ -8,6 +8,7 @@ FN: 'fn';
 LET: 'let';
 STRUCT: 'struct';
 INIT: 'jerry';
+POINTER_SYMBOL: '👉';
 
 TRUE: 'true';
 FALSE: 'false';
@@ -53,18 +54,28 @@ struct_init:
 		struct_init_field (COMMA struct_init_field)
 	)? CLOSED_BRACE;
 
+addressof: POINTER_SYMBOL expression;
+
 expression:
 	literal
 	| IDENTIFIER
 	| function_call
 	| struct_init
+	| addressof
 	| left = expression binary_op = PLUS right = expression
 	| left = expression binary_op = MINUS right = expression
 	| left = expression binary_op = MULTIPLY right = expression;
 
 assignment: LET? name = IDENTIFIER EQUAL expression;
 
-stmt: assignment SEMI | expression SEMI | block;
+assignment_pointer:
+	POINTER_SYMBOL name = IDENTIFIER EQUAL expression;
+
+stmt:
+	assignment SEMI
+	| assignment_pointer SEMI
+	| expression SEMI
+	| block;
 
 block: OPEN_BRACE stmt* CLOSED_BRACE;
 

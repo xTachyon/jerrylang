@@ -132,6 +132,30 @@ namespace JerryLang {
         public virtual bool IsNumber() {
             return false;
         }
+
+        public virtual bool IsPointer() {
+            return false;
+        }
+
+        public virtual bool IsPointerOf(AstType pointee) {
+            return false;
+        }
+    }
+
+    class PointerType : AstType {
+        public AstType Pointee { get; }
+
+        public PointerType(AstType pointee) {
+            Pointee = pointee;
+        }
+
+        public override bool IsPointer() {
+            return true;
+        }
+
+        public override bool IsPointerOf(AstType pointee) {
+            return Pointee == pointee;
+        }
     }
 
     class StructType : AstType {
@@ -174,6 +198,18 @@ namespace JerryLang {
 
     abstract class Statement : AstElement {
         public abstract SourceLocation Location { get; }
+    }
+
+    class PointerAssignment : Statement {
+        public override SourceLocation Location { get; }
+        public Variable Variable { get; }
+        public Expression Expression { get; }
+
+        public PointerAssignment(SourceLocation location, Variable variable, Expression expression) {
+            Location = location;
+            Variable = variable;
+            Expression = expression;
+        }
     }
 
     class Block : Statement {
@@ -221,6 +257,28 @@ namespace JerryLang {
 
     abstract class Expression : Statement {
         public abstract AstType GetAstType();
+    }
+
+    enum UnaryOperator {
+        AddressOf
+    }
+
+    class UnaryOperation : Expression {
+        public override SourceLocation Location { get; }
+        public UnaryOperator Operator { get; }
+        public Variable Variable { get; }
+        public AstType ResultType { get; }
+
+        public UnaryOperation(SourceLocation location, UnaryOperator @operator, Variable variable, AstType resultType) {
+            Location = location;
+            Operator = @operator;
+            Variable = variable;
+            ResultType = resultType;
+        }
+
+        public override AstType GetAstType() {
+            return ResultType;
+        }
     }
 
     class StructInit : Expression {

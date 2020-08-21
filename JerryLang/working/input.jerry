@@ -7,5 +7,7 @@ struct Joshua {
 }
 
 fn salut() {
-  let joshua = jerry Joshua { a: "abc", b: 43 };
+  let x = 5;
+  let xptr = 👉x;
+  👉xptr = 6;
 }

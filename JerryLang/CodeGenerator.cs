@@ -105,9 +105,11 @@ namespace JerryLang {
             if (statement is VariableDeclaration declaration) {
                 Generate(declaration);
                 return;
-            } else
-            if (statement is Assignment assignment) {
+            } else if (statement is Assignment assignment) {
                 Generate(assignment);
+                return;
+            } else if (statement is PointerAssignment pointerAssignment) {
+                Generate(pointerAssignment);
                 return;
             } else if (statement is Expression expression) {
                 Generate(expression);
@@ -133,6 +135,15 @@ namespace JerryLang {
             DebugInfoGenerator.Generate(assignment, store);
         }
 
+        void Generate(PointerAssignment assignment) {
+            var alloca = Things[assignment.Variable];
+            var expression = Generate(assignment.Expression);
+            var load = Builder.BuildLoad(alloca);
+            var store = Builder.BuildStore(expression, load);
+
+            DebugInfoGenerator.Generate(assignment, store);
+        }
+
         void Generate(Block block) {
             foreach (var i in block.Statements) {
                 Generate(i);
@@ -154,9 +165,16 @@ namespace JerryLang {
                 return Generate(call);
             } else if (expression is StructInit init) {
                 return Generate(init);
+            } else if (expression is UnaryOperation unary) {
+                return Generate(unary);
             }
 
             throw new CompilerErrorException("unknown expression");
+        }
+
+        LLVMValueRef Generate(UnaryOperation unary) {
+            var variable = Things[unary.Variable];
+            return variable;
         }
 
         LLVMValueRef Generate(StructInit init) {
@@ -224,8 +242,15 @@ namespace JerryLang {
                 return Translate(builtin);
             } else if (type is StructType @struct) {
                 return Translate(@struct);
+            } else if (type is PointerType pointer) {
+                return Translate(pointer);
             }
             throw new CompilerErrorException("unknown type");
+        }
+
+        private LLVMTypeRef Translate(PointerType pointer) {
+            var pointee = Translate(pointer.Pointee);
+            return LLVMTypeRef.CreatePointer(pointee, 0);
         }
 
         public LLVMTypeRef Translate(StructType struuct) {

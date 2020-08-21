@@ -147,6 +147,12 @@ namespace JerryLang {
                     flags, type);
             }
         }
+
+        public static ulong GetSizeInBits(this LLVMMetadataRef type) {
+            unsafe {
+                return LLVM.DITypeGetSizeInBits(type);
+            }
+        }
     }
 
     internal unsafe struct MarshaledString : IDisposable {

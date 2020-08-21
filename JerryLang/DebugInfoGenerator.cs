@@ -40,6 +40,22 @@ namespace JerryLang {
             return oneMetadata;
         }
 
+        private uint GetSizeOfInBits(AstType type) {
+            if (type is BuiltinType builtin) {
+                switch (builtin.Kind) {
+                    case BuiltinTypeKind.Unit:
+                        return 0;
+                    case BuiltinTypeKind.Bool:
+                        return 8;
+                    case BuiltinTypeKind.Number:
+                        return 64;
+                    case BuiltinTypeKind.String:
+                        return 64;
+                }
+            }
+            return unchecked((uint)-1);
+        }
+
         public LLVMMetadataRef Translate(BuiltinType type) {
             const uint DW_ATE_boolean = 0x02;
             const uint DW_ATE_signed = 0x05;
@@ -52,7 +68,7 @@ namespace JerryLang {
                 case BuiltinTypeKind.Number:
                     return DiBuilder.CreateBasicType("number", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
                 case BuiltinTypeKind.String:
-                    var pointee = DiBuilder.CreateBasicType("ch", 8, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
+                    var pointee = DiBuilder.CreateBasicType("ch", 64, DW_ATE_signed, LLVMDIFlags.LLVMDIFlagZero);
                     return DiBuilder.CreatePointerType(pointee, 0, 0, 0, "ch*");
             }
 
@@ -60,16 +76,13 @@ namespace JerryLang {
         }
 
         public LLVMMetadataRef Translate(StructType type) {
-            //return DiBuilder.CreateBasicType("bool", 1, 0x02, LLVMDIFlags.LLVMDIFlagZero);
-
             var location = type.Item.SourceLocation;
             var file = Translate(location.File);
 
             var elements = new List<LLVMMetadataRef>();
             ulong offset = 0;
             foreach (var i in type.Fields) {
-                var fieldType = CodeGenerator.Translate(i.Type);
-                uint sizeInBits = 8;
+                uint sizeInBits = GetSizeOfInBits(i.Type);
                 uint alignInBits = 0;
 
                 var el = DiBuilder.CreateMemberType(file, i.Name, file, (uint)location.Line, sizeInBits, alignInBits,
@@ -83,11 +96,18 @@ namespace JerryLang {
                 new LLVMMetadataRef(), elements, 0, new LLVMMetadataRef(), type.Name);
         }
 
+        public LLVMMetadataRef Translate(PointerType pointer) {
+            var pointee = Translate(pointer.Pointee);
+            return DiBuilder.CreatePointerType(pointee, 64, 64, 0, "pointer");
+        }
+
         public LLVMMetadataRef Translate(AstType type) {
             if (type is BuiltinType builtin) {
                 return Translate(builtin);
             } else if (type is StructType @struct) {
                 return Translate(@struct);
+            } else if (type is PointerType pointer) {
+                return Translate(pointer);
             }
 
             throw new CompilerErrorException("unknown type");

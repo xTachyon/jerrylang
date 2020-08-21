@@ -39,13 +39,20 @@ namespace JerryLang {
         }
 
         public void Compile() {
-            LLVMModuleRef module;
-            using (var codegen = new CodeGenerator(Document, Filename)) {
+            LLVMModuleRef module = null;
+            Exception e = null;
+            try {
+                using var codegen = new CodeGenerator(Document, Filename);
                 module = codegen.Generate();
+            } catch (Exception ex) {
+                e = ex;
             }
             module.PrintToFile("code.ll");
             var str = module.PrintToString();
             Console.WriteLine(str);
+            if (e != null) {
+                throw e;
+            }
         }
     }
 }
