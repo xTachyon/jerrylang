@@ -46,10 +46,12 @@ literal: number | STRING | boolean;
 function_call:
 	name = IDENTIFIER OPEN_PAREN (expression (COMMA expression)*)? COMMA? CLOSED_PAREN;
 
+struct_init_field: name = IDENTIFIER COLON value = expression;
+
 struct_init:
-	INIT name = IDENTIFIER OPEN_PAREN (
-		expression (COMMA expression)
-	)? CLOSED_PAREN;
+	INIT name = IDENTIFIER OPEN_BRACE (
+		struct_init_field (COMMA struct_init_field)
+	)? CLOSED_BRACE;
 
 expression:
 	literal

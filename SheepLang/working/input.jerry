@@ -2,11 +2,10 @@ fn println_number(x: number);
 fn println_string(x: string);
 
 struct Joshua {
-  broke: bool,
-  rustdoc: bool
+  a: string,
+  b: number
 }
 
 fn salut() {
-  let joshua = jerry Joshua(true, true);
-  let again = true;
+  let joshua = jerry Joshua { a: "abc", b: 43 };
 }

@@ -1,2 +1,6 @@
 SheepLang/bin
 SheepLang/obj
+.vs
+LoadThing/Debug
+LoadThing/Release
+LoadThing/x64
