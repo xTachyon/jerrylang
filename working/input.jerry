@@ -1,0 +1,13 @@
+fn println_number(x: number);
+fn println_string(x: string);
+
+struct Joshua {
+  a: string,
+  b: number
+}
+
+fn salut() {
+  let x = 5;
+  let xptr = 👉x;
+  👉xptr = 6;
+}
