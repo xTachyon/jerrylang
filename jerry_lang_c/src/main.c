@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "ast.h"
+#include "codegen.h"
 
 static const char* read_file(const char* path) {
     FILE* file = fopen(path, "rb");
@@ -42,4 +43,6 @@ int main(int argc, char** argv) {
     AstContext context = { .original_text = file, .memory = create_vector_AstKindPtr() };
 
     parse(&context, tokens, tokens_size);
+
+    CodeGen* codegen = codegen_create(&context);
 }

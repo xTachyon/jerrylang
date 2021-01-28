@@ -21,6 +21,9 @@
     <ClCompile Include="src\ast.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\codegen.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common.h">
@@ -33,6 +36,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\ast.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\codegen.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
