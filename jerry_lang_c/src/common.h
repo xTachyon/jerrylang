@@ -36,6 +36,12 @@ typedef uint64_t uint64;
         vector.capacity     = 0;                                                                                       \
         vector.element_size = sizeof(type);                                                                            \
         return vector;                                                                                                 \
+    }                                                                                                                  \
+    inline void delete_vector_##name(VectorOf##name* vector) {                                                         \
+        free(vector->ptr);                                                                                             \
+        vector->ptr      = NULL;                                                                                       \
+        vector->size     = 0;                                                                                          \
+        vector->capacity = 0;                                                                                          \
     }
 
 struct VectorOfBase {

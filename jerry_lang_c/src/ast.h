@@ -97,8 +97,12 @@ typedef struct FunctionArgument {
     Token token_type;
 } FunctionArgument;
 
+typedef enum ItemKind {
+    ITEM_FUNCTION,
+} ItemKind;
+
 typedef struct Item {
-    int xx;
+    ItemKind kind;
 } Item;
 
 typedef struct Block {
@@ -106,6 +110,8 @@ typedef struct Block {
 } Block;
 
 typedef struct FunctionItem {
+    Item base;
+
     Token token_function_name;
 
     const char* name;
@@ -120,6 +126,11 @@ VECTOR_OF(AstKind*, AstKindPtr);
 typedef struct {
     VectorOfAstKindPtr memory;
     const char* original_text;
+
+    Item* items;
+    size_t items_size;
 } AstContext;
 
 void* ast_alloc_impl(AstContext* context, size_t bytes);
+
+VECTOR_OF(void*, Void);

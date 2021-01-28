@@ -301,6 +301,7 @@ static FunctionItem* parse_function(Parser* parser) {
     }
 
     FunctionItem* function        = ast_alloc(FunctionItem);
+    function->base.kind           = ITEM_FUNCTION;
     function->token_function_name = function_name;
     function->name                = parser->context->original_text + function_name.offset;
     function->name_size           = function_name.size;
@@ -312,19 +313,26 @@ static FunctionItem* parse_function(Parser* parser) {
     return function;
 }
 
-static void do_parse(Parser* parser) {
+static Item* do_parse(Parser* parser) {
     if (get_current_token().type == TOKEN_FN) {
-        parse_function(parser);
-        return;
+        return (Item*) parse_function(parser);
     }
 
     bail_out("unexpected token");
 }
 
 void parse(AstContext* context, const Token* tokens, size_t size) {
-    Parser parser = { .context = context, .tokens = tokens, .tokens_size = size, .offset = 0 };
+    Parser parser_owned = { .context = context, .tokens = tokens, .tokens_size = size, .offset = 0 };
+    Parser* parser      = &parser_owned;
 
-    while (parser.offset < parser.tokens_size) {
-        do_parse(&parser);
+    VectorOfVoid items = create_vector_Void();
+    while (parser->offset < parser->tokens_size) {
+        void* item = do_parse(parser);
+        vector_push_back(&items, item);
     }
+
+    context->items      = ast_alloc_array(Item, items.size);
+    context->items_size = items.size;
+    memcpy(context->items, items.ptr, items.element_size * items.size);
+    delete_vector_Void(&items);
 }
