@@ -20,6 +20,7 @@ void* my_malloc(size_t bytes);
 #define bail_out(message) bail_out_if(false, message)
 
 typedef uint8_t uint8;
+typedef uint16_t uint16;
 typedef uint64_t uint64;
 
 #define VECTOR_OF(type, name)                                                                                          \

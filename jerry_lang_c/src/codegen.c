@@ -16,4 +16,5 @@ CodeGen* codegen_create(const AstContext* ast_context) {
 }
 
 void codegen_run(CodeGen* codegen) {
+    int x = 5;
 }

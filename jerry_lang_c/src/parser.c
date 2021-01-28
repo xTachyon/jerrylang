@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "ast.h"
 #include "parser.h"
 
@@ -73,7 +74,7 @@ static bool is_unary_token_operator(TokenType type) {
 static Expr* parse_unary(Parser* parser) {
     Token type           = get_current_token_eat();
     UnaryExpr* unary     = ast_alloc(UnaryExpr);
-    unary->expr.kind     = EXPR_UNARY;
+    unary->base.kind     = EXPR_UNARY;
     unary->subexpression = parse_one_expression(parser);
     switch (type.type) {
     case TOKEN_MINUS:
@@ -104,14 +105,33 @@ static size_t find_closed_brace(const Parser* parser, size_t start_at) {
     return -1;
 }
 
+static IntegerLiteralExpr* parse_integer_literal(Parser* parser) {
+    Token token_number;
+    expect_get_eat(token_number, TOKEN_INTEGER);
+
+    uint64 the_number;
+    char specifier;
+    uint16 integer_size;
+
+    sscanf(
+          parser->context->original_text + token_number.offset,
+          "%" PRIu64 "%c%" PRIu16,
+          &the_number,
+          &specifier,
+          &integer_size);
+
+    IntegerLiteralExpr* number = ast_alloc(IntegerLiteralExpr);
+    number->expr.kind          = EXPR_INTEGER_LITERAL;
+    number->number             = the_number;
+    number->is_unsigned        = specifier == 'u';
+    number->integer_size       = integer_size;
+    return number;
+}
+
 static Expr* parse_one_expression(Parser* parser) {
     Token token = get_current_token();
     if (token.type == TOKEN_INTEGER) {
-        IntegerLiteralExpr* number = ast_alloc(IntegerLiteralExpr);
-        number->expr.kind          = EXPR_INTEGER_LITERAL;
-        number->token_number       = token;
-        expect_token_eat(TOKEN_INTEGER);
-        return (Expr*) number;
+        return (Expr*) parse_integer_literal(parser);
     }
     if (token.type == TOKEN_OPEN_PAREN) {
         expect_token_eat(TOKEN_OPEN_PAREN);
@@ -334,7 +354,60 @@ static Item* do_parse(Parser* parser) {
     bail_out("unexpected token");
 }
 
+#undef ast_alloc
+#define ast_alloc(type) (type*) ast_alloc_impl(ast, sizeof(type))
+
+static void* fix_types_expr(AstContext* ast, Expr* expr);
+
+static void* fix_types_paren(AstContext* ast, ParenExpr* paren) {
+    return NULL;
+}
+
+static void* fix_types_binary(AstContext* ast, BinaryExpr* binary) {
+    binary->left  = fix_types_expr(ast, binary->left);
+    binary->right = fix_types_expr(ast, binary->right);
+
+    bail_out_if(types_equal(binary->left->type, binary->right->type), "types not equal");
+    binary->expr.type = binary->left->type;
+    return NULL;
+}
+
+static void* fix_types_unary(AstContext* ast, UnaryExpr* unary) {
+    fix_types_expr(ast, unary->subexpression);
+
+    switch (unary->kind) {
+    case UNARY_MINUS:
+    case UNARY_PLUS:
+        unary->base.type = unary->subexpression->type;
+        break;
+    default:
+        abort();
+    }
+    return NULL;
+}
+
+static void* fix_types_integer_literal(AstContext* ast, IntegerLiteralExpr* integer) {
+    PrimitiveType* type = ast_alloc(PrimitiveType);
+    type->base.kind     = TYPE_PRIMITIVE;
+    type->kind          = PRIMITIVE_NUMBER;
+    type->integer_size  = integer->integer_size;
+    type->is_unsigned   = integer->is_unsigned;
+    integer->expr.type  = (Type*) type;
+    return NULL;
+}
+
+static void* fix_types_var_ref(AstContext* ast, VariableReferenceExpr* var) {
+    return NULL;
+}
+
+static void* fix_types_expr(AstContext* ast, Expr* expr) {
+    ITERATE_EXPRS(ITERATE_DEFAULT, expr, fix_types, ast);
+
+    abort();
+}
+
 static void* fix_types_var_assign(AstContext* ast, VariableAssignment* assign) {
+    fix_types_expr(ast, assign->init);
     return NULL;
 }
 
@@ -365,7 +438,7 @@ static void* fix_types_item(AstContext* ast, Item* item) {
 
 void fix_types(AstContext* ast) {
     for (size_t i = 0; i < ast->items_size; ++i) {
-        fix_types_item(ast, ast->items [i]);
+        fix_types_item(ast, ast->items[i]);
     }
 }
 

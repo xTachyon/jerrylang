@@ -45,4 +45,5 @@ int main(int argc, char** argv) {
     parse(&context, tokens, tokens_size);
 
     CodeGen* codegen = codegen_create(&context);
+    codegen_run(codegen);
 }

@@ -7,7 +7,28 @@ typedef struct Expr Expr;
 typedef struct {
     int xxx;
 } AstKind;
-struct Type;
+
+typedef enum TypeKind {
+    TYPE_NONE,
+    TYPE_PRIMITIVE,
+} TypeKind;
+
+typedef struct Type {
+    TypeKind kind;
+} Type;
+
+typedef enum PrimitiveKind {
+    PRIMITIVE_NUMBER,
+    PRIMITIVE_BOOL,
+} PrimitiveKind;
+
+typedef struct PrimitiveType {
+    Type base;
+
+    PrimitiveKind kind;
+    uint16 integer_size;
+    bool is_unsigned;
+} PrimitiveType;
 
 typedef enum StmtKind {
     STMT_NONE,
@@ -39,6 +60,7 @@ typedef enum ExprKind {
 
 typedef struct Expr {
     ExprKind kind;
+    Type* type;
 } Expr;
 
 typedef struct VariableReferenceExpr {
@@ -56,7 +78,7 @@ typedef enum UnaryKind {
 } UnaryKind;
 
 typedef struct UnaryExpr {
-    Expr expr;
+    Expr base;
 
     UnaryKind kind;
     Expr* subexpression;
@@ -81,9 +103,10 @@ typedef struct BinaryExpr {
 typedef struct IntegerLiteralExpr {
     Expr expr;
 
-    Token token_number;
-
     uint64 number;
+    bool is_unsigned;
+    uint16 integer_size;
+
 } IntegerLiteralExpr;
 
 typedef struct ParenExpr {
@@ -134,6 +157,8 @@ typedef struct {
 
 void* ast_alloc_impl(AstContext* context, size_t bytes);
 
+bool types_equal(const Type* l, const Type* r);
+
 VECTOR_OF(Item*, ItemPtr);
 
 #define ITERATE_DEFAULT(var, name, value, type, function_to_call, arg)                                                 \
@@ -145,3 +170,12 @@ VECTOR_OF(Item*, ItemPtr);
 
 #define ITERATE_STMTS(impl, var, function_to_call, arg)                                                                \
     switch (var->kind) { impl(var, var_assign, STMT_VAR_ASSIGN, VariableAssignment, function_to_call, arg) }
+
+#define ITERATE_EXPRS(impl, var, function_to_call, arg)                                                                \
+    switch (var->kind) {                                                                                               \
+        impl(var, binary, EXPR_BINARY, BinaryExpr, function_to_call, arg);                                             \
+        impl(var, unary, EXPR_UNARY, UnaryExpr, function_to_call, arg);                                                \
+        impl(var, integer_literal, EXPR_INTEGER_LITERAL, IntegerLiteralExpr, function_to_call, arg);                   \
+        impl(var, paren, EXPR_PAREN, ParenExpr, function_to_call, arg);                                                \
+        impl(var, var_ref, EXPR_VAR, VariableReferenceExpr, function_to_call, arg);                                    \
+    }

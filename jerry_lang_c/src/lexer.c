@@ -70,6 +70,17 @@ static Token parse_number(Lexer* lexer) {
             break;
         }
     }
+    bail_out_if(lexer->offset < lexer->text_size, "not enough");
+
+    char specifier = lexer->text[lexer->offset++];
+    bail_out_if(specifier == 'u' || specifier == 's', "u/s");
+
+    for (; lexer->offset < lexer->text_size; ++lexer->offset) {
+        char current = lexer->text[lexer->offset];
+        if (!is_number(current)) {
+            break;
+        }
+    }
 
     size_t size         = lexer->offset - start_offset;
     enum TokenType type = get_ident_type(lexer->text + start_offset, size);
