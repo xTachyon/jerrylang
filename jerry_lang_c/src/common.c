@@ -15,7 +15,7 @@ static void grow_vector(struct VectorOfBase* vector, size_t with) {
     size_t new_capacity = max(vector->size + with, vector->capacity + vector->capacity / 2);
     uint8* memory       = my_malloc(vector->element_size * new_capacity);
     if (vector->ptr) {
-        memcpy(memory, vector->ptr, sizeof(vector->element_size * vector->size));
+        memcpy(memory, vector->ptr, vector->element_size * vector->size);
     }
     free(vector->ptr);
     vector->ptr      = memory;

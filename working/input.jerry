@@ -8,6 +8,6 @@ struct Joshua {
 
 fn salut() {
   let x = 5;
-  let xptr = 👉x;
-  👉xptr = 6;
+  let xptr = &x;
+  *xptr = 6;
 }

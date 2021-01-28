@@ -31,5 +31,6 @@ static const char* read_file(const char* path) {
 int main(int argc, char** argv) {
     const char* file_path = argv[1];
     const char* file = read_file(file_path);
-    parse_tokens(file, strlen(file));
+    struct VectorOfToken tokens =  parse_tokens(file, strlen(file));
+    print_tokens(file, tokens.ptr, tokens.size);
 }
