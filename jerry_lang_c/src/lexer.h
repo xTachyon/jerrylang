@@ -16,7 +16,6 @@ enum TokenType {
     TOKEN_COLON,
     TOKEN_SEMI,
     TOKEN_AMPERSAND,
-    TOKEN_STAR,
 
     TOKEN_EQUAL,
     TOKEN_DOUBLE_EQUAL,
@@ -25,18 +24,28 @@ enum TokenType {
     TOKEN_GREATER,
     TOKEN_GREATER_EQUAL,
 
+    TOKEN_PLUS,
+    TOKEN_PLUS_EQUAL,
+    TOKEN_MINUS,
+    TOKEN_MINUS_EQUAL,
+    TOKEN_STAR,
+    TOKEN_STAR_EQUAL,
+    TOKEN_SLASH,
+    TOKEN_SLASH_EQUAL,
+
     TOKEN_FN,
 
     TOKEN_END_SIZE,
 };
 
-struct Token {
+typedef struct {
     enum TokenType type;
     size_t offset;
     size_t size;
-};
+} Token;
 
-VECTOR_OF(Token);
+VECTOR_OF(Token, Token);
 
-struct VectorOfToken parse_tokens(const char* text, size_t text_size);
-void print_tokens(const char* text, const struct Token* tokens, size_t size);
+VectorOfToken parse_tokens(const char* text, size_t text_size);
+void print_tokens(const char* text, const Token* tokens, size_t size);
+void remove_spaces(Token* tokens, size_t* size);

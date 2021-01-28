@@ -15,12 +15,24 @@
     <ClCompile Include="src\lexer.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\parser.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ast.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\common.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\lexer.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parser.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ast.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

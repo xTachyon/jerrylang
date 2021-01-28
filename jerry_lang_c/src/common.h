@@ -21,19 +21,19 @@ void* my_malloc(size_t bytes);
 
 typedef uint8_t uint8;
 
-#define VECTOR_OF(type)                                                                                                \
-    struct VectorOf##type {                                                                                            \
-        struct type* ptr;                                                                                              \
+#define VECTOR_OF(type, name)                                                                                          \
+    typedef struct {                                                                                                   \
+        type* ptr;                                                                                                     \
         size_t size;                                                                                                   \
         size_t capacity;                                                                                               \
         size_t element_size;                                                                                           \
-    };                                                                                                                 \
-    inline struct VectorOf##type create_vector_##type() {                                                              \
-        struct VectorOf##type vector;                                                                                  \
+    } VectorOf##name;                                                                                                  \
+    inline VectorOf##name create_vector_##name() {                                                                     \
+        VectorOf##name vector;                                                                                         \
         vector.ptr          = NULL;                                                                                    \
         vector.size         = 0;                                                                                       \
         vector.capacity     = 0;                                                                                       \
-        vector.element_size = sizeof(struct type);                                                                     \
+        vector.element_size = sizeof(type);                                                                            \
         return vector;                                                                                                 \
     }
 
@@ -49,3 +49,5 @@ void vector_push_back(void* vector, void* element);
 int string_compare(const char* first, size_t first_size, const char* second, size_t second_size);
 
 #define array_size(var) sizeof(var) / sizeof(*var)
+
+#define zero_array(var) memset(var + 0, 0, sizeof(var))

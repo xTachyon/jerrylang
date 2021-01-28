@@ -1,11 +1,11 @@
 #include "lexer.h"
 
-struct Lexer {
-    struct VectorOfToken tokens;
+typedef struct {
+    VectorOfToken tokens;
     const char* text;
     size_t text_size;
     size_t offset;
-};
+} Lexer;
 
 static bool is_letter(char ch) {
     return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
@@ -24,20 +24,20 @@ static bool is_ident_char(char ch) {
 }
 
 static bool is_special(char ch) {
-    return strchr("(){},:;*&", ch);
+    return strchr("(){},:;&", ch);
 }
 
 static bool is_operator(char ch) {
-    return strchr("<=>", ch);
+    return strchr("<=>+-*/", ch);
 }
 
-struct TokenTypeData {
+typedef struct {
     const char* name;
     enum TokenType type;
-};
+} TokenTypeData;
 
 enum TokenType get_ident_type(const char* text, size_t size) {
-    struct TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN } };
+    TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN } };
 
     for (size_t i = 0; i < array_size(keywords); ++i) {
         if (string_compare(text, size, keywords[i].name, strlen(keywords[i].name)) == 0) {
@@ -47,7 +47,7 @@ enum TokenType get_ident_type(const char* text, size_t size) {
     return TOKEN_IDENT;
 }
 
-static struct Token parse_ident(struct Lexer* lexer) {
+static Token parse_ident(Lexer* lexer) {
     size_t start_offset = lexer->offset;
     for (; lexer->offset < lexer->text_size; ++lexer->offset) {
         char current = lexer->text[lexer->offset];
@@ -58,11 +58,11 @@ static struct Token parse_ident(struct Lexer* lexer) {
 
     size_t size         = lexer->offset - start_offset;
     enum TokenType type = get_ident_type(lexer->text + start_offset, size);
-    struct Token result = { .type = TOKEN_IDENT, .offset = start_offset, .size = size };
+    Token result        = { .type = type, .offset = start_offset, .size = size };
     return result;
 }
 
-static struct Token parse_number(struct Lexer* lexer) {
+static Token parse_number(Lexer* lexer) {
     size_t start_offset = lexer->offset;
     for (; lexer->offset < lexer->text_size; ++lexer->offset) {
         char current = lexer->text[lexer->offset];
@@ -73,11 +73,11 @@ static struct Token parse_number(struct Lexer* lexer) {
 
     size_t size         = lexer->offset - start_offset;
     enum TokenType type = get_ident_type(lexer->text + start_offset, size);
-    struct Token result = { .type = TOKEN_INTEGER, .offset = start_offset, .size = size };
+    Token result        = { .type = TOKEN_INTEGER, .offset = start_offset, .size = size };
     return result;
 }
 
-static struct Token parse_space(struct Lexer* lexer) {
+static Token parse_space(Lexer* lexer) {
     size_t start_offset = lexer->offset;
     for (; lexer->offset < lexer->text_size; ++lexer->offset) {
         char current = lexer->text[lexer->offset];
@@ -86,12 +86,12 @@ static struct Token parse_space(struct Lexer* lexer) {
         }
     }
 
-    size_t size         = lexer->offset - start_offset;
-    struct Token result = { .type = TOKEN_SPACE, .offset = start_offset, .size = size };
+    size_t size  = lexer->offset - start_offset;
+    Token result = { .type = TOKEN_SPACE, .offset = start_offset, .size = size };
     return result;
 }
 
-static struct Token parse_special(struct Lexer* lexer) {
+static Token parse_special(Lexer* lexer) {
     char current = lexer->text[lexer->offset];
 
     enum TokenType type;
@@ -120,6 +120,9 @@ static struct Token parse_special(struct Lexer* lexer) {
     case '*':
         type = TOKEN_STAR;
         break;
+    case '/':
+        type = TOKEN_SLASH;
+        break;
     case '&':
         type = TOKEN_AMPERSAND;
         break;
@@ -127,12 +130,12 @@ static struct Token parse_special(struct Lexer* lexer) {
         bail_out("unknown special");
     }
 
-    struct Token result = { .type = TOKEN_SPACE, .offset = lexer->offset, .size = 1 };
+    Token result = { .type = type, .offset = lexer->offset, .size = 1 };
     lexer->offset++;
     return result;
 }
 
-static struct Token parse_operator(struct Lexer* lexer) {
+static Token parse_operator(Lexer* lexer) {
     char current          = lexer->text[lexer->offset];
     bool maybe_has_second = lexer->offset + 1 < lexer->text_size;
     char next             = maybe_has_second ? lexer->text[lexer->offset] : '\0';
@@ -160,16 +163,44 @@ static struct Token parse_operator(struct Lexer* lexer) {
         } else {
             type = TOKEN_GREATER;
         }
+    } else if (current == '+') {
+        if (next == '=') {
+            type       = TOKEN_PLUS_EQUAL;
+            has_second = true;
+        } else {
+            type = TOKEN_PLUS;
+        }
+    } else if (current == '-') {
+        if (next == '=') {
+            type       = TOKEN_MINUS_EQUAL;
+            has_second = true;
+        } else {
+            type = TOKEN_MINUS;
+        }
+    } else if (current == '*') {
+        if (next == '=') {
+            type       = TOKEN_STAR_EQUAL;
+            has_second = true;
+        } else {
+            type = TOKEN_STAR;
+        }
+    } else if (current == '/') {
+        if (next == '=') {
+            type       = TOKEN_SLASH_EQUAL;
+            has_second = true;
+        } else {
+            type = TOKEN_SLASH;
+        }
     } else {
         bail_out("unknown operator");
     }
 
-    struct Token result = { .type = type, .offset = lexer->offset, .size = 1 + (size_t) has_second };
+    Token result = { .type = type, .offset = lexer->offset, .size = 1 + (size_t) has_second };
     lexer->offset += 1 + (size_t) has_second;
     return result;
 }
 
-static struct Token parse_one(struct Lexer* lexer) {
+static Token parse_one(Lexer* lexer) {
     char current = lexer->text[lexer->offset];
     if (is_letter(current)) {
         return parse_ident(lexer);
@@ -190,11 +221,11 @@ static struct Token parse_one(struct Lexer* lexer) {
     bail_out("unknown token");
 }
 
-struct VectorOfToken parse_tokens(const char* text, size_t text_size) {
-    struct Lexer lexer = { .text = text, .text_size = text_size, .tokens = create_vector_Token(), .offset = 0 };
+VectorOfToken parse_tokens(const char* text, size_t text_size) {
+    Lexer lexer = { .text = text, .text_size = text_size, .tokens = create_vector_Token(), .offset = 0 };
 
     while (lexer.offset < lexer.text_size) {
-        struct Token token = parse_one(&lexer);
+        Token token = parse_one(&lexer);
         vector_push_back(&lexer.tokens, &token);
     }
 
@@ -203,6 +234,10 @@ struct VectorOfToken parse_tokens(const char* text, size_t text_size) {
 
 static const char* get_token_name(enum TokenType type) {
     const char* names[TOKEN_END_SIZE];
+    for (size_t i = 0; i < array_size(names); ++i) {
+        names[i] = NULL;
+    }
+
     names[TOKEN_IDENT]         = "ident";
     names[TOKEN_INTEGER]       = "integer";
     names[TOKEN_SPACE]         = "space";
@@ -222,6 +257,16 @@ static const char* get_token_name(enum TokenType type) {
     names[TOKEN_GREATER]       = "greater";
     names[TOKEN_GREATER_EQUAL] = "greater_equal";
     names[TOKEN_FN]            = "fn";
+    names[TOKEN_PLUS]          = "plus";
+    names[TOKEN_PLUS_EQUAL]    = "plus_equal";
+    names[TOKEN_MINUS]         = "minus";
+    names[TOKEN_MINUS_EQUAL]   = "minus_equal";
+    names[TOKEN_STAR]          = "star";
+    names[TOKEN_STAR_EQUAL]    = "star_equal";
+    names[TOKEN_SLASH]         = "slash";
+    names[TOKEN_SLASH_EQUAL]   = "SLASH_EQUAl";
+
+    bail_out_if(names[type] != NULL, "unknown token");
 
     return names[type];
 }
@@ -258,11 +303,11 @@ static void escape(const char* input, size_t input_size, char* output, size_t ma
     *output = '\0';
 }
 
-void print_tokens(const char* text, const struct Token* tokens, size_t size) {
+void print_tokens(const char* text, const Token* tokens, size_t size) {
     char buffer[8 * 1024];
     char escaped[4 * 1024];
     for (size_t i = 0; i < size; ++i) {
-        const struct Token current = tokens[i];
+        const Token current = tokens[i];
         escape(text + current.offset, current.size, escaped, sizeof(escaped));
         sprintf(
               buffer,
@@ -274,4 +319,14 @@ void print_tokens(const char* text, const struct Token* tokens, size_t size) {
 
         printf(buffer);
     }
+}
+
+void remove_spaces(Token* tokens, size_t* size) {
+    size_t insert = 0;
+    for (size_t i = 0; i < *size; ++i) {
+        if (tokens[i].type != TOKEN_SPACE) {
+            tokens[insert++] = tokens[i];
+        }
+    }
+    *size = insert;
 }

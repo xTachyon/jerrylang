@@ -139,13 +139,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\ast.c" />
     <ClCompile Include="src\common.c" />
     <ClCompile Include="src\lexer.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\parser.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\ast.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\lexer.h" />
+    <ClInclude Include="src\parser.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

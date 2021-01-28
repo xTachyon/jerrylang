@@ -2,6 +2,8 @@
 #include <string.h>
 #include "common.h"
 #include "lexer.h"
+#include "parser.h"
+#include "ast.h"
 
 static const char* read_file(const char* path) {
     FILE* file = fopen(path, "rb");
@@ -29,8 +31,15 @@ static const char* read_file(const char* path) {
 }
 
 int main(int argc, char** argv) {
-    const char* file_path = argv[1];
-    const char* file = read_file(file_path);
-    struct VectorOfToken tokens =  parse_tokens(file, strlen(file));
-    print_tokens(file, tokens.ptr, tokens.size);
+    const char* file_path       = argv[1];
+    const char* file            = read_file(file_path);
+    VectorOfToken vector_tokens = parse_tokens(file, strlen(file));
+    Token* tokens               = vector_tokens.ptr;
+    size_t tokens_size          = vector_tokens.size;
+    remove_spaces(tokens, &tokens_size);
+    print_tokens(file, tokens, tokens_size);
+
+    AstContext context = { .memory = create_vector_AstKindPtr() };
+
+    parse(&context, tokens, tokens_size);
 }
