@@ -1,10 +1,7 @@
 fn println_u32(x: u32);
 fn println_string(x: string);
 
-
-
 fn salut() {
-  let x = 1 + 2 * 3 + (4 + 5) * 6;
+  let x = 1 + 2 * 3 + (-4 + -5) * 6;
   let xptr = &x;
-  *xptr = 6;
 }

@@ -3,6 +3,7 @@
 #include "common.h"
 
 typedef enum {
+    TOKEN_NOTHING,
     TOKEN_IDENT,
     TOKEN_INTEGER,
     TOKEN_SPACE,

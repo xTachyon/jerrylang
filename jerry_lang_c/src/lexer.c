@@ -312,7 +312,8 @@ void print_tokens(const char* text, const Token* tokens, size_t size) {
         escape(text + current.offset, current.size, escaped, sizeof(escaped));
         sprintf(
               buffer,
-              "%s[%zu-%zu] : %s\n",
+              "%zu . %s[%zu-%zu] : %s\n",
+              i,
               get_token_name(current.type),
               current.offset,
               current.offset + current.size,
