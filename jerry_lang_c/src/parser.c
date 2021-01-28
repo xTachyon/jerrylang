@@ -246,6 +246,7 @@ static VariableAssignment* parse_variable_assignment(Parser* parser, bool let) {
     assign->token_name         = name;
     assign->name               = parser->context->original_text + name.offset;
     assign->name_size          = name.size;
+    assign->init               = init;
 
     return assign;
 }
@@ -253,17 +254,29 @@ static VariableAssignment* parse_variable_assignment(Parser* parser, bool let) {
 static Block* parse_block(Parser* parser) {
     expect_token_eat(TOKEN_OPEN_BRACE);
 
+    VectorOfVoid vector = create_vector_Void();
     while (parser->offset < parser->tokens_size) {
         TokenType current_type = get_current_token().type;
+        Stmt* stmt;
         if (current_type == TOKEN_LET) {
-            parse_variable_assignment(parser, true);
+            stmt = (Stmt*) parse_variable_assignment(parser, true);
+        } else {
+            abort();
         }
+        vector_push_back(&vector, &stmt);
         if (get_current_token().type == TOKEN_CLOSED_BRACE) {
             break;
         }
     }
     expect_token_eat(TOKEN_CLOSED_BRACE);
-    return NULL;
+
+    Block* block      = ast_alloc(Block);
+    block->stmts      = ast_alloc_array(Stmt*, vector.size);
+    block->stmts_size = vector.size;
+    memcpy(block->stmts, vector.ptr, vector.element_size * vector.size);
+    delete_vector_Void(&vector);
+
+    return block;
 }
 
 static FunctionItem* parse_function(Parser* parser) {
@@ -321,18 +334,58 @@ static Item* do_parse(Parser* parser) {
     bail_out("unexpected token");
 }
 
-void parse(AstContext* context, const Token* tokens, size_t size) {
-    Parser parser_owned = { .context = context, .tokens = tokens, .tokens_size = size, .offset = 0 };
-    Parser* parser      = &parser_owned;
+static void* fix_types_var_assign(AstContext* ast, VariableAssignment* assign) {
+    return NULL;
+}
 
-    VectorOfVoid items = create_vector_Void();
-    while (parser->offset < parser->tokens_size) {
-        void* item = do_parse(parser);
-        vector_push_back(&items, item);
+static void* fix_types_stmt(AstContext* ast, Stmt* stmt) {
+    ITERATE_STMTS(ITERATE_DEFAULT, stmt, fix_types, ast);
+
+    abort();
+}
+
+static void* fix_types_block(AstContext* ast, Block* block) {
+    for (size_t i = 0; i < block->stmts_size; ++i) {
+        fix_types_stmt(ast, block->stmts[i]);
     }
 
-    context->items      = ast_alloc_array(Item, items.size);
-    context->items_size = items.size;
-    memcpy(context->items, items.ptr, items.element_size * items.size);
-    delete_vector_Void(&items);
+    return NULL;
+}
+
+static void* fix_types_function(AstContext* ast, FunctionItem* item) {
+    fix_types_block(ast, item->block);
+    return NULL;
+}
+
+static void* fix_types_item(AstContext* ast, Item* item) {
+    ITERATE_ITEMS(ITERATE_DEFAULT, item, fix_types, ast);
+
+    abort();
+}
+
+void fix_types(AstContext* ast) {
+    for (size_t i = 0; i < ast->items_size; ++i) {
+        fix_types_item(ast, ast->items [i]);
+    }
+}
+
+void parse(AstContext* ast, const Token* tokens, size_t size) {
+    Parser parser_owned = { .context = ast, .tokens = tokens, .tokens_size = size, .offset = 0 };
+    Parser* parser      = &parser_owned;
+
+    VectorOfItemPtr items = create_vector_ItemPtr();
+    while (parser->offset < parser->tokens_size) {
+        Item* item = do_parse(parser);
+        vector_push_back(&items, &item);
+    }
+
+    ast->items      = ast_alloc_array(Item*, items.size);
+    ast->items_size = items.size;
+    for (size_t i = 0; i < items.size; ++i) {
+        ast->items[i] = items.ptr[i];
+    }
+    memcpy(ast->items, items.ptr, items.element_size * items.size);
+    delete_vector_ItemPtr(&items);
+
+    fix_types(ast);
 }

@@ -58,3 +58,5 @@ int string_compare(const char* first, size_t first_size, const char* second, siz
 #define array_size(var) sizeof(var) / sizeof(*var)
 
 #define zero_array(var) memset(var + 0, 0, sizeof(var))
+
+VECTOR_OF(void*, Void);

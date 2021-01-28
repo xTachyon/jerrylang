@@ -106,7 +106,8 @@ typedef struct Item {
 } Item;
 
 typedef struct Block {
-    int xxx;
+    Stmt** stmts;
+    size_t stmts_size;
 } Block;
 
 typedef struct FunctionItem {
@@ -127,10 +128,20 @@ typedef struct {
     VectorOfAstKindPtr memory;
     const char* original_text;
 
-    Item* items;
+    Item** items;
     size_t items_size;
 } AstContext;
 
 void* ast_alloc_impl(AstContext* context, size_t bytes);
 
-VECTOR_OF(void*, Void);
+VECTOR_OF(Item*, ItemPtr);
+
+#define ITERATE_DEFAULT(var, name, value, type, function_to_call, arg)                                                 \
+    case value:                                                                                                        \
+        return function_to_call##_##name(arg, (type*) var);
+
+#define ITERATE_ITEMS(impl, var, function_to_call, arg)                                                                \
+    switch (var->kind) { impl(var, function, ITEM_FUNCTION, FunctionItem, function_to_call, arg) }
+
+#define ITERATE_STMTS(impl, var, function_to_call, arg)                                                                \
+    switch (var->kind) { impl(var, var_assign, STMT_VAR_ASSIGN, VariableAssignment, function_to_call, arg) }
