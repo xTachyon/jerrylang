@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-enum TokenType {
+typedef enum {
     TOKEN_IDENT,
     TOKEN_INTEGER,
     TOKEN_SPACE,
@@ -34,12 +34,13 @@ enum TokenType {
     TOKEN_SLASH_EQUAL,
 
     TOKEN_FN,
+    TOKEN_LET,
 
     TOKEN_END_SIZE,
-};
+} TokenType;
 
 typedef struct {
-    enum TokenType type;
+    TokenType type;
     size_t offset;
     size_t size;
 } Token;

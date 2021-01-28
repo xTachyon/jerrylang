@@ -37,7 +37,7 @@ typedef struct {
 } TokenTypeData;
 
 enum TokenType get_ident_type(const char* text, size_t size) {
-    TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN } };
+    TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN }, { .name = "let", .type = TOKEN_LET } };
 
     for (size_t i = 0; i < array_size(keywords); ++i) {
         if (string_compare(text, size, keywords[i].name, strlen(keywords[i].name)) == 0) {
@@ -138,7 +138,7 @@ static Token parse_special(Lexer* lexer) {
 static Token parse_operator(Lexer* lexer) {
     char current          = lexer->text[lexer->offset];
     bool maybe_has_second = lexer->offset + 1 < lexer->text_size;
-    char next             = maybe_has_second ? lexer->text[lexer->offset] : '\0';
+    char next             = maybe_has_second ? lexer->text[lexer->offset + 1] : '\0';
 
     enum TokenType type;
     bool has_second = false;
@@ -264,7 +264,8 @@ static const char* get_token_name(enum TokenType type) {
     names[TOKEN_STAR]          = "star";
     names[TOKEN_STAR_EQUAL]    = "star_equal";
     names[TOKEN_SLASH]         = "slash";
-    names[TOKEN_SLASH_EQUAL]   = "SLASH_EQUAl";
+    names[TOKEN_SLASH_EQUAL]   = "slash_equal";
+    names[TOKEN_LET]           = "let";
 
     bail_out_if(names[type] != NULL, "unknown token");
 

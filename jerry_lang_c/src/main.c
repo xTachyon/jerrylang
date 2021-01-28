@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     remove_spaces(tokens, &tokens_size);
     print_tokens(file, tokens, tokens_size);
 
-    AstContext context = { .memory = create_vector_AstKindPtr() };
+    AstContext context = { .original_text = file, .memory = create_vector_AstKindPtr() };
 
     parse(&context, tokens, tokens_size);
 }
