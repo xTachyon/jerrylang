@@ -34,7 +34,7 @@ static const char* read_file(const char* path) {
 int main(int argc, char** argv) {
     const char* file_path       = argv[1];
     const char* file            = read_file(file_path);
-    VectorOfToken vector_tokens = parse_tokens(file, strlen(file));
+    VectorToken vector_tokens = parse_tokens(file, strlen(file));
     Token* tokens               = vector_tokens.ptr;
     size_t tokens_size          = vector_tokens.size;
     remove_spaces(tokens, &tokens_size);

@@ -148,7 +148,7 @@ typedef struct FunctionItem {
 VECTOR_OF(AstKind*, AstKindPtr);
 
 typedef struct {
-    VectorOfAstKindPtr memory;
+    VectorAstKindPtr memory;
     const char* original_text;
 
     Item** items;

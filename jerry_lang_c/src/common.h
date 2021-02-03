@@ -29,30 +29,25 @@ typedef uint64_t uint64;
         size_t size;                                                                                                   \
         size_t capacity;                                                                                               \
         size_t element_size;                                                                                           \
-    } VectorOf##name;                                                                                                  \
-    inline VectorOf##name create_vector_##name() {                                                                     \
-        VectorOf##name vector;                                                                                         \
+    } Vector##name;                                                                                                  \
+    inline Vector##name create_vector_##name() {                                                                     \
+        Vector##name vector;                                                                                         \
         vector.ptr          = NULL;                                                                                    \
         vector.size         = 0;                                                                                       \
         vector.capacity     = 0;                                                                                       \
         vector.element_size = sizeof(type);                                                                            \
         return vector;                                                                                                 \
-    }                                                                                                                  \
-    inline void delete_vector_##name(VectorOf##name* vector) {                                                         \
-        free(vector->ptr);                                                                                             \
-        vector->ptr      = NULL;                                                                                       \
-        vector->size     = 0;                                                                                          \
-        vector->capacity = 0;                                                                                          \
-    }
+    }                                                                                                                  
 
-struct VectorOfBase {
+typedef struct VectorBase {
     uint8* ptr;
     size_t size;
     size_t capacity;
     size_t element_size;
-};
+} VectorBase;
 
 void vector_push_back(void* vector, void* element);
+void delete_vector(void* vector);
 
 int string_compare(const char* first, size_t first_size, const char* second, size_t second_size);
 

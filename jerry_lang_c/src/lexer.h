@@ -48,6 +48,6 @@ typedef struct {
 
 VECTOR_OF(Token, Token);
 
-VectorOfToken parse_tokens(const char* text, size_t text_size);
+VectorToken parse_tokens(const char* text, size_t text_size);
 void print_tokens(const char* text, const Token* tokens, size_t size);
 void remove_spaces(Token* tokens, size_t* size);

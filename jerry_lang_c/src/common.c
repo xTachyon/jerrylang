@@ -8,7 +8,7 @@ void* my_malloc(size_t bytes) {
     return result;
 }
 
-static void grow_vector(struct VectorOfBase* vector, size_t with) {
+static void grow_vector(VectorBase* vector, size_t with) {
     if (vector->size + with <= vector->capacity) {
         return;
     }
@@ -21,10 +21,18 @@ static void grow_vector(struct VectorOfBase* vector, size_t with) {
 }
 
 void vector_push_back(void* vector_par, void* element) {
-    struct VectorOfBase* vector = (struct VectorOfBase*) vector_par;
+    VectorBase* vector = (VectorBase*) vector_par;
     grow_vector(vector, 1);
     memcpy(vector->ptr + vector->element_size * vector->size, element, vector->element_size);
     vector->size++;
+}
+
+void delete_vector(void* vector_par) {
+    VectorBase* vector = (VectorBase*) vector_par;
+    free(vector->ptr);
+    vector->ptr      = NULL;
+    vector->size     = 0;
+    vector->capacity = 0;
 }
 
 int string_compare(const char* first, size_t first_size, const char* second, size_t second_size) {

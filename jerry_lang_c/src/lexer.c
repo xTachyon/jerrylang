@@ -1,7 +1,7 @@
 #include "lexer.h"
 
 typedef struct {
-    VectorOfToken tokens;
+    VectorToken tokens;
     const char* text;
     size_t text_size;
     size_t offset;
@@ -232,7 +232,7 @@ static Token parse_one(Lexer* lexer) {
     bail_out("unknown token");
 }
 
-VectorOfToken parse_tokens(const char* text, size_t text_size) {
+VectorToken parse_tokens(const char* text, size_t text_size) {
     Lexer lexer = { .text = text, .text_size = text_size, .tokens = create_vector_Token(), .offset = 0 };
 
     while (lexer.offset < lexer.text_size) {
