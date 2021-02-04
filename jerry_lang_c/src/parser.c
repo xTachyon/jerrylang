@@ -151,8 +151,7 @@ static Expr* parse_one_expression(Parser* parser) {
         expect_token_eat(TOKEN_IDENT);
         VariableReferenceExpr* var = ast_alloc(VariableReferenceExpr);
         var->expr.kind             = EXPR_VAR;
-        var->name                  = parser->context->original_text + token.offset;
-        var->name_size             = token.size;
+        var->token_name            = token;
         return (Expr*) var;
     }
 
@@ -270,6 +269,7 @@ static VariableAssignment* parse_variable_assignment(Parser* parser, bool let) {
     assign->name               = parser->context->original_text + name.offset;
     assign->name_size          = name.size;
     assign->init               = init;
+    assign->is_decl            = let;
 
     return assign;
 }
@@ -357,26 +357,34 @@ static Item* do_parse(Parser* parser) {
     bail_out("unexpected token");
 }
 
+/* ----------------------------------------------------------------------------------------------------------------- */
+
 #undef ast_alloc
-#define ast_alloc(type) (type*) ast_alloc_impl(ast, sizeof(type))
+#define ast_alloc(type) (type*) ast_alloc_impl(fixer->ast, sizeof(type))
 
-static void* fix_types_expr(AstContext* ast, Expr* expr);
+typedef struct TypeFixer {
+    AstContext* ast;
+    VariableAssignment* variables[32];
+    size_t variables_size;
+} TypeFixer;
 
-static void* fix_types_paren(AstContext* ast, ParenExpr* paren) {
-    return NULL;
+static void fix_types_expr(TypeFixer* fixer, Expr* expr);
+
+static void fix_types_paren(TypeFixer* fixer, ParenExpr* paren) {
+    abort();
 }
 
-static void* fix_types_binary(AstContext* ast, BinaryExpr* binary) {
-    fix_types_expr(ast, binary->left);
-    fix_types_expr(ast, binary->right);
+static void* fix_types_binary(TypeFixer* fixer, BinaryExpr* binary) {
+    fix_types_expr(fixer, binary->left);
+    fix_types_expr(fixer, binary->right);
 
     bail_out_if(types_equal(binary->left->type, binary->right->type), "types not equal");
     binary->expr.type = binary->left->type;
     return NULL;
 }
 
-static void* fix_types_unary(AstContext* ast, UnaryExpr* unary) {
-    fix_types_expr(ast, unary->subexpression);
+static void* fix_types_unary(TypeFixer* fixer, UnaryExpr* unary) {
+    fix_types_expr(fixer, unary->subexpression);
 
     switch (unary->kind) {
     case UNARY_MINUS:
@@ -389,7 +397,7 @@ static void* fix_types_unary(AstContext* ast, UnaryExpr* unary) {
     return NULL;
 }
 
-static void* fix_types_integer_literal(AstContext* ast, IntegerLiteralExpr* integer) {
+static void* fix_types_integer_literal(TypeFixer* fixer, IntegerLiteralExpr* integer) {
     PrimitiveType* type = ast_alloc(PrimitiveType);
     type->base.kind     = TYPE_PRIMITIVE;
     type->kind          = PRIMITIVE_NUMBER;
@@ -399,50 +407,65 @@ static void* fix_types_integer_literal(AstContext* ast, IntegerLiteralExpr* inte
     return NULL;
 }
 
-static void* fix_types_var_ref(AstContext* ast, VariableReferenceExpr* var) {
-    return NULL;
-}
+static void fix_types_var_ref(TypeFixer* fixer, VariableReferenceExpr* var) {
+    const char* name = fixer->ast->original_text + var->token_name.offset;
 
-static void* fix_types_expr(AstContext* ast, Expr* expr) {
-    ITERATE_EXPRS(ITERATE_DEFAULT_RETURN, expr, fix_types, ast);
-
+    for (size_t i = 0; i < fixer->variables_size; ++i) {
+        VariableAssignment* current = fixer->variables[fixer->variables_size - i - 1];
+        if (string_compare(current->name, current->name_size, name, var->token_name.size) == 0) {
+            var->declaration = current;
+            var->expr.type   = current->init->type;
+            return;
+        }
+    }
     abort();
 }
 
-static void* fix_types_var_assign(AstContext* ast, VariableAssignment* assign) {
-    fix_types_expr(ast, assign->init);
-    return NULL;
+static void fix_types_expr(TypeFixer* fixer, Expr* expr) {
+    ITERATE_EXPRS(ITERATE_DEFAULT_RETURN_VOID, expr, fix_types, fixer);
 }
 
-static void* fix_types_stmt(AstContext* ast, Stmt* stmt) {
-    ITERATE_STMTS(ITERATE_DEFAULT_RETURN, stmt, fix_types, ast);
+static void fix_types_var_assign(TypeFixer* fixer, VariableAssignment* assign) {
+    fix_types_expr(fixer, assign->init);
+    if (assign->is_decl) {
+        bool name_already_exist = false;
+        for (size_t i = 0; i < fixer->variables_size && !name_already_exist; ++i) {
+            const VariableAssignment* current = fixer->variables[fixer->variables_size - i - 1];
+            name_already_exist =
+                  string_compare(current->name, current->name_size, assign->name, assign->name_size) == 0;
+        }
+        bail_out_if(!name_already_exist, "name already exists");
 
-    abort();
+        fixer->variables[fixer->variables_size++] = assign;
+    }
 }
 
-static void* fix_types_block(AstContext* ast, Block* block) {
+static void fix_types_stmt(TypeFixer* fixer, Stmt* stmt) {
+    ITERATE_STMTS(ITERATE_DEFAULT_RETURN_VOID, stmt, fix_types, fixer);
+}
+
+static void fix_types_block(TypeFixer* fixer, Block* block) {
+    size_t variables_size_original = fixer->variables_size;
+
     for (size_t i = 0; i < block->stmts_size; ++i) {
-        fix_types_stmt(ast, block->stmts[i]);
+        fix_types_stmt(fixer, block->stmts[i]);
     }
 
-    return NULL;
+    fixer->variables_size = variables_size_original;
 }
 
-static void* fix_types_function(AstContext* ast, FunctionItem* item) {
-    item->return_type = ast->type_void;
-    fix_types_block(ast, item->block);
-    return NULL;
+static void fix_types_function(TypeFixer* fixer, FunctionItem* item) {
+    item->return_type = fixer->ast->type_void;
+    fix_types_block(fixer, item->block);
 }
 
-static void* fix_types_item(AstContext* ast, Item* item) {
-    ITERATE_ITEMS(ITERATE_DEFAULT_RETURN, item, fix_types, ast);
-
-    abort();
+static void fix_types_item(TypeFixer* fixer, Item* item) {
+    ITERATE_ITEMS(ITERATE_DEFAULT_RETURN_VOID, item, fix_types, fixer);
 }
 
-void fix_types(AstContext* ast) {
-    for (size_t i = 0; i < ast->items_size; ++i) {
-        fix_types_item(ast, ast->items[i]);
+static void fix_types(TypeFixer* fixer) {
+    for (size_t i = 0; i < fixer->ast->items_size; ++i) {
+        fix_types_item(fixer, fixer->ast->items[i]);
     }
 }
 
@@ -464,5 +487,6 @@ void parse(AstContext* ast, const Token* tokens, size_t size) {
     memcpy(ast->items, items.ptr, items.element_size * items.size);
     delete_vector(&items);
 
-    fix_types(ast);
+    TypeFixer fixer = { .ast = ast, .variables_size = 0 };
+    fix_types(&fixer);
 }

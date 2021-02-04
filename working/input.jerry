@@ -2,4 +2,5 @@
 
 fn main() {
   let x = 5 + 10;
+  let y = x + 20;
 }

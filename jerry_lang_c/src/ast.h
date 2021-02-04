@@ -48,6 +48,7 @@ typedef struct VariableAssignment {
     const char* name;
     size_t name_size;
     Expr* init;
+    bool is_decl : 1;
 } VariableAssignment;
 
 typedef enum ExprKind {
@@ -67,8 +68,8 @@ typedef struct Expr {
 typedef struct VariableReferenceExpr {
     Expr expr;
 
-    const char* name;
-    size_t name_size;
+    Token token_name;
+    VariableAssignment* declaration;
 } VariableReferenceExpr;
 
 typedef enum UnaryKind {
@@ -200,7 +201,11 @@ VECTOR_OF(Item*, ItemPtr);
     }
 
 #define ITERATE_STMTS(impl, var, function_to_call, arg)                                                                \
-    switch (var->kind) { impl(var, var_assign, STMT_VAR_ASSIGN, VariableAssignment, function_to_call, arg) }
+    switch (var->kind) {                                                                                               \
+        impl(var, var_assign, STMT_VAR_ASSIGN, VariableAssignment, function_to_call, arg);                             \
+    default:                                                                                                           \
+        abort();                                                                                                       \
+    }
 
 #define ITERATE_EXPRS(impl, var, function_to_call, arg)                                                                \
     switch (var->kind) {                                                                                               \

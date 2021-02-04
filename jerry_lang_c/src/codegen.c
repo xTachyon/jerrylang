@@ -2,8 +2,17 @@
 #include <llvm-c/Analysis.h>
 #include "codegen.h"
 
+typedef struct VariableMapping {
+    const VariableAssignment* variable;
+    LLVMValueRef l_variable;
+} VariableMapping;
+
+VECTOR_OF(VariableMapping, VariableMapping);
+
 typedef struct CodeGen {
     const AstContext* ast;
+
+    VectorVariableMapping variable_mapping;
 
     LLVMContextRef context;
     LLVMModuleRef module;
@@ -14,8 +23,10 @@ typedef struct CodeGen {
 } CodeGen;
 
 CodeGen* codegen_create(const AstContext* ast_context) {
-    CodeGen* codegen = my_malloc(sizeof(CodeGen));
-    codegen->ast     = ast_context;
+    CodeGen* codegen          = my_malloc(sizeof(CodeGen));
+    codegen->ast              = ast_context;
+    codegen->variable_mapping = create_vector_VariableMapping();
+
     codegen->context = LLVMContextCreate();
     bail_out_if(codegen->context, "can't");
 
@@ -60,7 +71,13 @@ static LLVMValueRef codegen_paren(CodeGen* codegen, const ParenExpr* expr) {
 }
 
 static LLVMValueRef codegen_var_ref(CodeGen* codegen, const VariableReferenceExpr* expr) {
-    return NULL;
+    for (size_t i = 0; i < codegen->variable_mapping.size; ++i) {
+        VariableMapping current = codegen->variable_mapping.ptr[i];
+        if (current.variable == expr->declaration) {
+            return LLVMBuildLoad(codegen->builder, current.l_variable, "");
+        }
+    }
+    bail_out("no");
 }
 
 static LLVMValueRef codegen_unary(CodeGen* codegen, const UnaryExpr* expr) {
@@ -85,10 +102,23 @@ static LLVMValueRef codegen_expr(CodeGen* codegen, const Expr* expr) {
 static void codegen_var_assign(CodeGen* codegen, const VariableAssignment* var) {
     make_string_stack(name, MAX_FUNCTION_SIZE, var->name, var->name_size);
 
-    LLVMValueRef value = codegen_expr(codegen, var->init);
-    LLVMTypeRef type   = LLVMTypeOf(value);
-    LLVMValueRef alloc = LLVMBuildAlloca(codegen->builder, type, name);
+    LLVMTypeRef type   = translate_type(codegen, var->init->type);
+    LLVMValueRef alloc = NULL;
+    if (var->is_decl) {
+        alloc                   = LLVMBuildAlloca(codegen->builder, type, name);
+        VariableMapping mapping = { .variable = var, .l_variable = alloc };
+        vector_push_back(&codegen->variable_mapping, &mapping);
+    } else {
+        for (size_t i = 0; i < codegen->variable_mapping.size; ++i) {
+            VariableMapping current = codegen->variable_mapping.ptr[i];
+            if (current.variable == var) {
+                alloc = current.l_variable;
+            }
+        }
+        bail_out_if(alloc, "no");
+    }
 
+    LLVMValueRef value = codegen_expr(codegen, var->init);
     LLVMBuildStore(codegen->builder, value, alloc);
 }
 

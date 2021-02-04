@@ -5,5 +5,9 @@ define void @main() {
 main:
   %x = alloca i64, align 8
   store i64 15, i64* %x, align 4
+  %y = alloca i64, align 8
+  %0 = load i64, i64* %x, align 4
+  %1 = add i64 %0, 20
+  store i64 %1, i64* %y, align 4
   ret void
 }
