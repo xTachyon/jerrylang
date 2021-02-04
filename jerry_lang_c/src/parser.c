@@ -51,6 +51,12 @@ static BinaryKind parse_binary_operator(TokenType type) {
         return BINARY_MUL;
     case TOKEN_SLASH:
         return BINARY_DIV;
+
+    case TOKEN_DOUBLE_EQUAL:
+        return BINARY_EQ;
+    case TOKEN_NOT_EQUAL:
+        return BINARY_NOT_EQ;
+
     case TOKEN_AMPERSAND:
         return UNARY_ADDRESS_OF;
     default:
@@ -124,7 +130,7 @@ static IntegerLiteralExpr* parse_integer_literal(Parser* parser) {
     sscanf(parser->context->original_text + token_number.offset, format, &the_number, &specifier, &integer_size);
 
     IntegerLiteralExpr* number = ast_alloc(IntegerLiteralExpr);
-    number->expr.kind          = EXPR_INTEGER_LITERAL;
+    number->expr.kind          = EXPR_INT_LIT;
     number->number             = the_number;
     number->is_unsigned        = specifier == 'u';
     number->integer_size       = integer_size;
@@ -154,18 +160,28 @@ static Expr* parse_one_expression(Parser* parser) {
         var->token_name            = token;
         return (Expr*) var;
     }
+    if (token.type == TOKEN_TRUE || token.type == TOKEN_FALSE) {
+        get_current_token_eat();
+        BoolLiteralExpr* lit = ast_alloc(BoolLiteralExpr);
+        lit->expr.kind       = EXPR_BOOL_LIT;
+        lit->value           = token.type == TOKEN_TRUE;
+        return (Expr*) lit;
+    }
 
     return NULL;
 }
 
 static uint8 get_op_priority(BinaryKind kind) {
     switch (kind) {
+    case BINARY_EQ:
+    case BINARY_NOT_EQ:
+        return 1;
     case BINARY_MINUS:
     case BINARY_PLUS:
-        return 1;
+        return 2;
     case BINARY_MUL:
     case BINARY_DIV:
-        return 2;
+        return 3;
     default:
         abort();
     }
@@ -374,16 +390,19 @@ static void fix_types_paren(TypeFixer* fixer, ParenExpr* paren) {
     abort();
 }
 
-static void* fix_types_binary(TypeFixer* fixer, BinaryExpr* binary) {
+static void fix_types_binary(TypeFixer* fixer, BinaryExpr* binary) {
     fix_types_expr(fixer, binary->left);
     fix_types_expr(fixer, binary->right);
 
     bail_out_if(types_equal(binary->left->type, binary->right->type), "types not equal");
-    binary->expr.type = binary->left->type;
-    return NULL;
+    if (binary->kind == BINARY_EQ || binary->kind == BINARY_NOT_EQ) {
+        binary->expr.type = fixer->ast->type_bool;
+    } else {
+        binary->expr.type = binary->left->type;
+    }
 }
 
-static void* fix_types_unary(TypeFixer* fixer, UnaryExpr* unary) {
+static void fix_types_unary(TypeFixer* fixer, UnaryExpr* unary) {
     fix_types_expr(fixer, unary->subexpression);
 
     switch (unary->kind) {
@@ -394,17 +413,19 @@ static void* fix_types_unary(TypeFixer* fixer, UnaryExpr* unary) {
     default:
         abort();
     }
-    return NULL;
 }
 
-static void* fix_types_integer_literal(TypeFixer* fixer, IntegerLiteralExpr* integer) {
+static void fix_types_int_lit(TypeFixer* fixer, IntegerLiteralExpr* integer) {
     PrimitiveType* type = ast_alloc(PrimitiveType);
     type->base.kind     = TYPE_PRIMITIVE;
     type->kind          = PRIMITIVE_NUMBER;
     type->integer_size  = integer->integer_size;
     type->is_unsigned   = integer->is_unsigned;
     integer->expr.type  = (Type*) type;
-    return NULL;
+}
+
+static void fix_types_bool_lit(TypeFixer* fixer, BoolLiteralExpr* boolean) {
+    boolean->expr.type = fixer->ast->type_bool;
 }
 
 static void fix_types_var_ref(TypeFixer* fixer, VariableReferenceExpr* var) {

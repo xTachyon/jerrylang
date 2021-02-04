@@ -1,6 +1,7 @@
 
 
 fn main() {
-  let x = 5 + 10;
-  let y = x + 20;
+  let x = 5 == 5;
+  let y = x == true;
+  let z = x != true;
 }

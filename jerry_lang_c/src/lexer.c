@@ -28,7 +28,7 @@ static bool is_special(char ch) {
 }
 
 static bool is_operator(char ch) {
-    return strchr("<=>+-*/", ch);
+    return strchr("<=>+-*/!", ch);
 }
 
 typedef struct {
@@ -37,7 +37,10 @@ typedef struct {
 } TokenTypeData;
 
 enum TokenType get_ident_type(const char* text, size_t size) {
-    TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN }, { .name = "let", .type = TOKEN_LET } };
+    TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN },
+                                 { .name = "let", .type = TOKEN_LET },
+                                 { .name = "true", .type = TOKEN_TRUE },
+                                 { .name = "false", .type = TOKEN_FALSE } };
 
     for (size_t i = 0; i < array_size(keywords); ++i) {
         if (string_compare(text, size, keywords[i].name, strlen(keywords[i].name)) == 0) {
@@ -205,6 +208,13 @@ static Token parse_operator(Lexer* lexer) {
         } else {
             type = TOKEN_SLASH;
         }
+    } else if (current == '!') {
+        if (next == '=') {
+            type       = TOKEN_NOT_EQUAL;
+            has_second = true;
+        } else {
+            type = TOKEN_NOT;
+        }
     } else {
         bail_out("unknown operator");
     }
@@ -280,6 +290,10 @@ static const char* get_token_name(enum TokenType type) {
     names[TOKEN_SLASH]         = "slash";
     names[TOKEN_SLASH_EQUAL]   = "slash_equal";
     names[TOKEN_LET]           = "let";
+    names[TOKEN_TRUE]          = "true";
+    names[TOKEN_FALSE]         = "false";
+    names[TOKEN_NOT]           = "not";
+    names[TOKEN_NOT_EQUAL]     = "not_equal";
 
     bail_out_if(names[type] != NULL, "unknown token");
 

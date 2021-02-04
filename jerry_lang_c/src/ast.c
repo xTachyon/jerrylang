@@ -50,3 +50,8 @@ bool type_is_void(const Type* t) {
     const PrimitiveType* primitive = (const PrimitiveType*) t;
     return t->kind == TYPE_PRIMITIVE && primitive->kind == PRIMITIVE_VOID;
 }
+
+bool type_is_number(const Type* t) {
+    const PrimitiveType* primitive = (const PrimitiveType*) t;
+    return t->kind == TYPE_PRIMITIVE && primitive->kind == PRIMITIVE_NUMBER;
+}

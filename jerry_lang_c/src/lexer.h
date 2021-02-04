@@ -17,9 +17,11 @@ typedef enum {
     TOKEN_COLON,
     TOKEN_SEMI,
     TOKEN_AMPERSAND,
+    TOKEN_NOT,
 
     TOKEN_EQUAL,
     TOKEN_DOUBLE_EQUAL,
+    TOKEN_NOT_EQUAL,
     TOKEN_LESS,
     TOKEN_LESS_EQUAL,
     TOKEN_GREATER,
@@ -36,6 +38,8 @@ typedef enum {
 
     TOKEN_FN,
     TOKEN_LET,
+    TOKEN_TRUE,
+    TOKEN_FALSE,
 
     TOKEN_END_SIZE,
 } TokenType;

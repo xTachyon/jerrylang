@@ -20,6 +20,9 @@ typedef struct CodeGen {
 
     LLVMTypeRef type_void;
     LLVMTypeRef type_bool;
+
+    LLVMValueRef value_true;
+    LLVMValueRef value_false;
 } CodeGen;
 
 CodeGen* codegen_create(const AstContext* ast_context) {
@@ -35,6 +38,9 @@ CodeGen* codegen_create(const AstContext* ast_context) {
 
     codegen->type_void = LLVMVoidTypeInContext(codegen->context);
     codegen->type_bool = LLVMInt1TypeInContext(codegen->context);
+
+    codegen->value_true  = LLVMConstInt(codegen->type_bool, 1, false);
+    codegen->value_false = LLVMConstInt(codegen->type_bool, 0, false);
 
     return codegen;
 }
@@ -61,9 +67,13 @@ static LLVMTypeRef translate_type(CodeGen* codegen, const Type* type) {
     ITERATE_TYPES(ITERATE_DEFAULT_RETURN, type, translate, codegen);
 }
 
-static LLVMValueRef codegen_integer_literal(CodeGen* codegen, const IntegerLiteralExpr* integer) {
+static LLVMValueRef codegen_int_lit(CodeGen* codegen, const IntegerLiteralExpr* integer) {
     LLVMTypeRef type = translate_type(codegen, integer->expr.type);
     return LLVMConstInt(type, integer->number, !integer->is_unsigned);
+}
+
+static LLVMValueRef codegen_bool_lit(CodeGen* codegen, const BoolLiteralExpr* lit) {
+    return lit->value ? codegen->value_true : codegen->value_false;
 }
 
 static LLVMValueRef codegen_paren(CodeGen* codegen, const ParenExpr* expr) {
@@ -88,10 +98,23 @@ static LLVMValueRef codegen_binary(CodeGen* codegen, const BinaryExpr* binary) {
     LLVMValueRef left  = codegen_expr(codegen, binary->left);
     LLVMValueRef right = codegen_expr(codegen, binary->right);
 
+    // if (type_is_number(binary->left->type) && types_equal(binary->left->type, binary->right->type)) {
     switch (binary->kind) {
     case BINARY_PLUS:
         return LLVMBuildAdd(codegen->builder, left, right, "");
+    case BINARY_MINUS:
+        return LLVMBuildSub(codegen->builder, left, right, "");
+    case BINARY_MUL:
+        return LLVMBuildMul(codegen->builder, left, right, "");
+
+    case BINARY_EQ:
+        return LLVMBuildICmp(codegen->builder, LLVMIntEQ, left, right, "");
+    case BINARY_NOT_EQ:
+        return LLVMBuildICmp(codegen->builder, LLVMIntNE, left, right, "");
+    default:
+        abort();
     }
+    //}
     abort();
 }
 

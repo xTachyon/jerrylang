@@ -53,7 +53,8 @@ typedef struct VariableAssignment {
 
 typedef enum ExprKind {
     EXPR_NONE,
-    EXPR_INTEGER_LITERAL,
+    EXPR_INT_LIT,
+    EXPR_BOOL_LIT,
     EXPR_PAREN,
     EXPR_UNARY,
     EXPR_BINARY,
@@ -92,6 +93,9 @@ typedef enum BinaryKind {
     BINARY_PLUS,
     BINARY_MUL,
     BINARY_DIV,
+
+    BINARY_EQ,
+    BINARY_NOT_EQ,
 } BinaryKind;
 
 typedef struct BinaryExpr {
@@ -110,6 +114,12 @@ typedef struct IntegerLiteralExpr {
     uint16 integer_size;
 
 } IntegerLiteralExpr;
+
+typedef struct BoolLiteralExpr {
+    Expr expr;
+
+    bool value;
+} BoolLiteralExpr;
 
 typedef struct ParenExpr {
     Expr expr;
@@ -176,6 +186,7 @@ void ast_context_create(AstContext* ast, const char* original_text);
 
 bool types_equal(const Type* l, const Type* r);
 bool type_is_void(const Type* t);
+bool type_is_number(const Type* t);
 
 enum { MAX_FUNCTION_SIZE = 255 };
 
@@ -211,7 +222,8 @@ VECTOR_OF(Item*, ItemPtr);
     switch (var->kind) {                                                                                               \
         impl(var, binary, EXPR_BINARY, BinaryExpr, function_to_call, arg);                                             \
         impl(var, unary, EXPR_UNARY, UnaryExpr, function_to_call, arg);                                                \
-        impl(var, integer_literal, EXPR_INTEGER_LITERAL, IntegerLiteralExpr, function_to_call, arg);                   \
+        impl(var, int_lit, EXPR_INT_LIT, IntegerLiteralExpr, function_to_call, arg);                                   \
+        impl(var, bool_lit, EXPR_BOOL_LIT, BoolLiteralExpr, function_to_call, arg);                                    \
         impl(var, paren, EXPR_PAREN, ParenExpr, function_to_call, arg);                                                \
         impl(var, var_ref, EXPR_VAR, VariableReferenceExpr, function_to_call, arg);                                    \
     default:                                                                                                           \
