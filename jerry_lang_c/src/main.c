@@ -32,18 +32,18 @@ static const char* read_file(const char* path) {
 }
 
 int main(int argc, char** argv) {
-    const char* file_path       = argv[1];
-    const char* file            = read_file(file_path);
+    const char* file_path     = argv[1];
+    const char* file          = read_file(file_path);
     VectorToken vector_tokens = parse_tokens(file, strlen(file));
-    Token* tokens               = vector_tokens.ptr;
-    size_t tokens_size          = vector_tokens.size;
+    Token* tokens             = vector_tokens.ptr;
+    size_t tokens_size        = vector_tokens.size;
     remove_spaces(tokens, &tokens_size);
     print_tokens(file, tokens, tokens_size);
 
-    AstContext context = { .original_text = file, .memory = create_vector_AstKindPtr() };
+    AstContext ast;
+    ast_context_create(&ast, file);
+    parse(&ast, tokens, tokens_size);
 
-    parse(&context, tokens, tokens_size);
-
-    CodeGen* codegen = codegen_create(&context);
+    CodeGen* codegen = codegen_create(&ast);
     codegen_run(codegen);
 }

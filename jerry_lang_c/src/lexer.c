@@ -72,13 +72,16 @@ static Token parse_number(Lexer* lexer) {
     }
     bail_out_if(lexer->offset < lexer->text_size, "not enough");
 
-    char specifier = lexer->text[lexer->offset++];
-    bail_out_if(specifier == 'u' || specifier == 's', "u/s");
+    char specifier = lexer->text[lexer->offset];
 
-    for (; lexer->offset < lexer->text_size; ++lexer->offset) {
-        char current = lexer->text[lexer->offset];
-        if (!is_number(current)) {
-            break;
+    if (specifier == 'u' || specifier == 's') {
+        lexer->offset++;
+
+        for (; lexer->offset < lexer->text_size; ++lexer->offset) {
+            char current = lexer->text[lexer->offset];
+            if (!is_number(current)) {
+                break;
+            }
         }
     }
 

@@ -1,0 +1,9 @@
+; ModuleID = 'mouse'
+source_filename = "mouse"
+
+define void @main() {
+main:
+  %x = alloca i64, align 8
+  store i64 15, i64* %x, align 4
+  ret void
+}

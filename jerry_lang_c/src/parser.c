@@ -109,16 +109,19 @@ static IntegerLiteralExpr* parse_integer_literal(Parser* parser) {
     Token token_number;
     expect_get_eat(token_number, TOKEN_INTEGER);
 
-    uint64 the_number;
-    char specifier;
-    uint16 integer_size;
+    const char* original_text = parser->context->original_text + token_number.offset;
+    bool has_specifier        = false;
+    for (size_t i = 0; i < token_number.size && !has_specifier; ++i) {
+        char current  = original_text[i];
+        has_specifier = current == 'u' || current == 's';
+    }
+    const char* format = has_specifier ? "%" PRIu64 "%c%" PRIu16 : "%" PRIu64;
 
-    sscanf(
-          parser->context->original_text + token_number.offset,
-          "%" PRIu64 "%c%" PRIu16,
-          &the_number,
-          &specifier,
-          &integer_size);
+    uint64 the_number;
+    char specifier      = 'u';
+    uint16 integer_size = 64;
+
+    sscanf(parser->context->original_text + token_number.offset, format, &the_number, &specifier, &integer_size);
 
     IntegerLiteralExpr* number = ast_alloc(IntegerLiteralExpr);
     number->expr.kind          = EXPR_INTEGER_LITERAL;
@@ -204,7 +207,7 @@ static BinaryExpr* parse_binary(Parser* parser, const ExprToken* tokens, size_t 
     }
 
     if (right_size == 1) {
-        binary->right = tokens[middle].expr;
+        binary->right = tokens[middle + 1].expr;
     } else {
         binary->right = (Expr*) parse_binary(parser, tokens + middle + 1, size - middle - 1);
     }
@@ -364,8 +367,8 @@ static void* fix_types_paren(AstContext* ast, ParenExpr* paren) {
 }
 
 static void* fix_types_binary(AstContext* ast, BinaryExpr* binary) {
-    binary->left  = fix_types_expr(ast, binary->left);
-    binary->right = fix_types_expr(ast, binary->right);
+    fix_types_expr(ast, binary->left);
+    fix_types_expr(ast, binary->right);
 
     bail_out_if(types_equal(binary->left->type, binary->right->type), "types not equal");
     binary->expr.type = binary->left->type;
@@ -401,7 +404,7 @@ static void* fix_types_var_ref(AstContext* ast, VariableReferenceExpr* var) {
 }
 
 static void* fix_types_expr(AstContext* ast, Expr* expr) {
-    ITERATE_EXPRS(ITERATE_DEFAULT, expr, fix_types, ast);
+    ITERATE_EXPRS(ITERATE_DEFAULT_RETURN, expr, fix_types, ast);
 
     abort();
 }
@@ -412,7 +415,7 @@ static void* fix_types_var_assign(AstContext* ast, VariableAssignment* assign) {
 }
 
 static void* fix_types_stmt(AstContext* ast, Stmt* stmt) {
-    ITERATE_STMTS(ITERATE_DEFAULT, stmt, fix_types, ast);
+    ITERATE_STMTS(ITERATE_DEFAULT_RETURN, stmt, fix_types, ast);
 
     abort();
 }
@@ -426,12 +429,13 @@ static void* fix_types_block(AstContext* ast, Block* block) {
 }
 
 static void* fix_types_function(AstContext* ast, FunctionItem* item) {
+    item->return_type = ast->type_void;
     fix_types_block(ast, item->block);
     return NULL;
 }
 
 static void* fix_types_item(AstContext* ast, Item* item) {
-    ITERATE_ITEMS(ITERATE_DEFAULT, item, fix_types, ast);
+    ITERATE_ITEMS(ITERATE_DEFAULT_RETURN, item, fix_types, ast);
 
     abort();
 }

@@ -1,7 +1,5 @@
 
 
-fn salut() {
-  let x = 5u32;
-  let y = -10s64;
-  let z = 123u13;
+fn main() {
+  let x = 5 + 10;
 }
