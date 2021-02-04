@@ -111,7 +111,7 @@ static size_t find_closed_brace(const Parser* parser, size_t start_at) {
     return -1;
 }
 
-static IntegerLiteralExpr* parse_integer_literal(Parser* parser) {
+static IntLitExpr* parse_integer_literal(Parser* parser) {
     Token token_number;
     expect_get_eat(token_number, TOKEN_INTEGER);
 
@@ -129,11 +129,11 @@ static IntegerLiteralExpr* parse_integer_literal(Parser* parser) {
 
     sscanf(parser->context->original_text + token_number.offset, format, &the_number, &specifier, &integer_size);
 
-    IntegerLiteralExpr* number = ast_alloc(IntegerLiteralExpr);
-    number->expr.kind          = EXPR_INT_LIT;
-    number->number             = the_number;
-    number->is_unsigned        = specifier == 'u';
-    number->integer_size       = integer_size;
+    IntLitExpr* number   = ast_alloc(IntLitExpr);
+    number->expr.kind    = EXPR_INT_LIT;
+    number->number       = the_number;
+    number->is_unsigned  = specifier == 'u';
+    number->integer_size = integer_size;
     return number;
 }
 
@@ -162,9 +162,9 @@ static Expr* parse_one_expression(Parser* parser) {
     }
     if (token.type == TOKEN_TRUE || token.type == TOKEN_FALSE) {
         get_current_token_eat();
-        BoolLiteralExpr* lit = ast_alloc(BoolLiteralExpr);
-        lit->expr.kind       = EXPR_BOOL_LIT;
-        lit->value           = token.type == TOKEN_TRUE;
+        BoolLitExpr* lit = ast_alloc(BoolLitExpr);
+        lit->expr.kind   = EXPR_BOOL_LIT;
+        lit->value       = token.type == TOKEN_TRUE;
         return (Expr*) lit;
     }
 
@@ -415,7 +415,7 @@ static void fix_types_unary(TypeFixer* fixer, UnaryExpr* unary) {
     }
 }
 
-static void fix_types_int_lit(TypeFixer* fixer, IntegerLiteralExpr* integer) {
+static void fix_types_int_lit(TypeFixer* fixer, IntLitExpr* integer) {
     PrimitiveType* type = ast_alloc(PrimitiveType);
     type->base.kind     = TYPE_PRIMITIVE;
     type->kind          = PRIMITIVE_NUMBER;
@@ -424,7 +424,7 @@ static void fix_types_int_lit(TypeFixer* fixer, IntegerLiteralExpr* integer) {
     integer->expr.type  = (Type*) type;
 }
 
-static void fix_types_bool_lit(TypeFixer* fixer, BoolLiteralExpr* boolean) {
+static void fix_types_bool_lit(TypeFixer* fixer, BoolLitExpr* boolean) {
     boolean->expr.type = fixer->ast->type_bool;
 }
 

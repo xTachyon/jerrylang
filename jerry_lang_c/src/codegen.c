@@ -67,12 +67,12 @@ static LLVMTypeRef translate_type(CodeGen* codegen, const Type* type) {
     ITERATE_TYPES(ITERATE_DEFAULT_RETURN, type, translate, codegen);
 }
 
-static LLVMValueRef codegen_int_lit(CodeGen* codegen, const IntegerLiteralExpr* integer) {
+static LLVMValueRef codegen_int_lit(CodeGen* codegen, const IntLitExpr* integer) {
     LLVMTypeRef type = translate_type(codegen, integer->expr.type);
     return LLVMConstInt(type, integer->number, !integer->is_unsigned);
 }
 
-static LLVMValueRef codegen_bool_lit(CodeGen* codegen, const BoolLiteralExpr* lit) {
+static LLVMValueRef codegen_bool_lit(CodeGen* codegen, const BoolLitExpr* lit) {
     return lit->value ? codegen->value_true : codegen->value_false;
 }
 

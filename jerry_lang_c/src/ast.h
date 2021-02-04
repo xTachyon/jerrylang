@@ -106,20 +106,20 @@ typedef struct BinaryExpr {
     BinaryKind kind;
 } BinaryExpr;
 
-typedef struct IntegerLiteralExpr {
+typedef struct IntLitExpr {
     Expr expr;
 
     uint64 number;
     bool is_unsigned;
     uint16 integer_size;
 
-} IntegerLiteralExpr;
+} IntLitExpr;
 
-typedef struct BoolLiteralExpr {
+typedef struct BoolLitExpr {
     Expr expr;
 
     bool value;
-} BoolLiteralExpr;
+} BoolLitExpr;
 
 typedef struct ParenExpr {
     Expr expr;
@@ -222,8 +222,8 @@ VECTOR_OF(Item*, ItemPtr);
     switch (var->kind) {                                                                                               \
         impl(var, binary, EXPR_BINARY, BinaryExpr, function_to_call, arg);                                             \
         impl(var, unary, EXPR_UNARY, UnaryExpr, function_to_call, arg);                                                \
-        impl(var, int_lit, EXPR_INT_LIT, IntegerLiteralExpr, function_to_call, arg);                                   \
-        impl(var, bool_lit, EXPR_BOOL_LIT, BoolLiteralExpr, function_to_call, arg);                                    \
+        impl(var, int_lit, EXPR_INT_LIT, IntLitExpr, function_to_call, arg);                                           \
+        impl(var, bool_lit, EXPR_BOOL_LIT, BoolLitExpr, function_to_call, arg);                                        \
         impl(var, paren, EXPR_PAREN, ParenExpr, function_to_call, arg);                                                \
         impl(var, var_ref, EXPR_VAR, VariableReferenceExpr, function_to_call, arg);                                    \
     default:                                                                                                           \
