@@ -39,6 +39,7 @@ typedef struct {
 enum TokenType get_ident_type(const char* text, size_t size) {
     TokenTypeData keywords[] = { { .name = "fn", .type = TOKEN_FN },
                                  { .name = "let", .type = TOKEN_LET },
+                                 { .name = "return", .type = TOKEN_RETURN },
                                  { .name = "true", .type = TOKEN_TRUE },
                                  { .name = "false", .type = TOKEN_FALSE } };
 
@@ -191,6 +192,9 @@ static Token parse_operator(Lexer* lexer) {
         if (next == '=') {
             type       = TOKEN_MINUS_EQUAL;
             has_second = true;
+        } else if (next == '>') {
+            type       = TOKEN_ARROW;
+            has_second = true;
         } else {
             type = TOKEN_MINUS;
         }
@@ -294,6 +298,8 @@ static const char* get_token_name(enum TokenType type) {
     names[TOKEN_FALSE]         = "false";
     names[TOKEN_NOT]           = "not";
     names[TOKEN_NOT_EQUAL]     = "not_equal";
+    names[TOKEN_ARROW]         = "arrow";
+    names[TOKEN_RETURN]        = "return";
 
     bail_out_if(names[type] != NULL, "unknown token");
 
@@ -359,4 +365,9 @@ void remove_spaces(Token* tokens, size_t* size) {
         }
     }
     *size = insert;
+}
+
+Token empty_token() {
+    Token result = { .type = TOKEN_NOTHING, .offset = -1, .size = -1 };
+    return result;
 }

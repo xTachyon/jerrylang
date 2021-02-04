@@ -45,12 +45,6 @@ CodeGen* codegen_create(const AstContext* ast_context) {
     return codegen;
 }
 
-#define make_string_stack(name_brrr, max_string_size, string, string_size)                                             \
-    bail_out_if(string_size + 1 <= max_string_size, "string too big");                                                 \
-    char name_brrr[max_string_size];                                                                                   \
-    strncpy(name_brrr, string, string_size);                                                                           \
-    name_brrr[string_size] = '\0';
-
 static LLVMValueRef codegen_expr(CodeGen* codegen, const Expr* expr);
 
 static LLVMTypeRef translate_primitive(CodeGen* codegen, const PrimitiveType* type) {
@@ -145,6 +139,15 @@ static void codegen_var_assign(CodeGen* codegen, const VariableAssignment* var) 
     LLVMBuildStore(codegen->builder, value, alloc);
 }
 
+static void codegen_return(CodeGen* codegen, const ReturnStmt* return_stmt) {
+    if (return_stmt->subexpr == NULL) {
+        LLVMBuildRetVoid(codegen->builder);
+        return;
+    }
+    LLVMValueRef subexpr = codegen_expr(codegen, return_stmt->subexpr);
+    LLVMBuildRet(codegen->builder, subexpr);
+}
+
 static void codegen_stmt(CodeGen* codegen, const Stmt* stmt) {
     ITERATE_STMTS(ITERATE_DEFAULT_RETURN_VOID, stmt, codegen, codegen);
 }
@@ -158,7 +161,8 @@ static void codegen_block(CodeGen* codegen, const Block* block) {
 static void codegen_function(CodeGen* codegen, const FunctionItem* function) {
     make_string_stack(name, MAX_FUNCTION_SIZE, function->name, function->name_size);
 
-    LLVMTypeRef function_type = LLVMFunctionType(codegen->type_void, NULL, 0, false);
+    LLVMTypeRef return_type   = translate_type(codegen, function->return_type);
+    LLVMTypeRef function_type = LLVMFunctionType(return_type, NULL, 0, false);
 
     LLVMValueRef l_function = LLVMAddFunction(codegen->module, name, function_type);
     LLVMBasicBlockRef entry = LLVMAppendBasicBlockInContext(codegen->context, l_function, name);

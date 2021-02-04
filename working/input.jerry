@@ -1,7 +1,6 @@
 
 
-fn main() {
-  let x = 5 == 5;
-  let y = x == true;
-  let z = x != true;
+fn main() -> u64 {
+  let x = 5;
+  return x;
 }

@@ -290,6 +290,23 @@ static VariableAssignment* parse_variable_assignment(Parser* parser, bool let) {
     return assign;
 }
 
+static ReturnStmt* parse_return(Parser* parser) {
+    expect_token_eat(TOKEN_RETURN);
+
+    Expr* subexpr     = NULL;
+    size_t semi_index = find_semi(parser);
+    if (semi_index != parser->offset) {
+        subexpr = parse_expression(parser, semi_index);
+    }
+    expect_token_eat(TOKEN_SEMI);
+
+    ReturnStmt* return_stmt = ast_alloc(ReturnStmt);
+    return_stmt->base.kind  = STMT_RETURN;
+    return_stmt->subexpr    = subexpr;
+
+    return return_stmt;
+}
+
 static Block* parse_block(Parser* parser) {
     expect_token_eat(TOKEN_OPEN_BRACE);
 
@@ -299,6 +316,8 @@ static Block* parse_block(Parser* parser) {
         Stmt* stmt;
         if (current_type == TOKEN_LET) {
             stmt = (Stmt*) parse_variable_assignment(parser, true);
+        } else if (current_type == TOKEN_RETURN) {
+            stmt = (Stmt*) parse_return(parser);
         } else {
             abort();
         }
@@ -345,8 +364,17 @@ static FunctionItem* parse_function(Parser* parser) {
 
     expect_token_eat(TOKEN_CLOSED_PAREN);
 
-    Block* block = NULL;
-    if (get_current_token().type == TOKEN_SEMI) {
+    Block* block      = NULL;
+    Token return_type = empty_token();
+
+    TokenType next_token = get_current_token().type;
+    if (next_token == TOKEN_ARROW) {
+        expect_token_eat(TOKEN_ARROW);
+        expect_get_eat(return_type, TOKEN_IDENT);
+
+        next_token = get_current_token().type;
+    }
+    if (next_token == TOKEN_SEMI) {
         expect_token_eat(TOKEN_SEMI);
     } else {
         block = parse_block(parser);
@@ -355,6 +383,7 @@ static FunctionItem* parse_function(Parser* parser) {
     FunctionItem* function        = ast_alloc(FunctionItem);
     function->base.kind           = ITEM_FUNCTION;
     function->token_function_name = function_name;
+    function->token_return_type   = return_type;
     function->name                = parser->context->original_text + function_name.offset;
     function->name_size           = function_name.size;
     function->arguments           = ast_alloc_array(FunctionArgument, arguments_size);
@@ -461,6 +490,10 @@ static void fix_types_var_assign(TypeFixer* fixer, VariableAssignment* assign) {
     }
 }
 
+static void fix_types_return(TypeFixer* fixer, ReturnStmt* return_stmt) {
+    fix_types_expr(fixer, return_stmt->subexpr);
+}
+
 static void fix_types_stmt(TypeFixer* fixer, Stmt* stmt) {
     ITERATE_STMTS(ITERATE_DEFAULT_RETURN_VOID, stmt, fix_types, fixer);
 }
@@ -475,9 +508,30 @@ static void fix_types_block(TypeFixer* fixer, Block* block) {
     fixer->variables_size = variables_size_original;
 }
 
-static void fix_types_function(TypeFixer* fixer, FunctionItem* item) {
-    item->return_type = fixer->ast->type_void;
-    fix_types_block(fixer, item->block);
+static Type* fix_types_type(TypeFixer* fixer, Token token) {
+    make_string_stack(token_text, 256, fixer->ast->original_text + token.offset, token.size);
+    if (token_text[0] == 'u' || token_text[0] == 's') {
+        long number = atol(token_text + 1);
+
+        PrimitiveType* type = ast_alloc(PrimitiveType);
+        type->base.kind     = TYPE_PRIMITIVE;
+        type->kind          = PRIMITIVE_NUMBER;
+        type->integer_size  = (uint16) number;
+        type->is_unsigned   = token_text[0] == 'u';
+
+        return (Type*) type;
+    }
+
+    abort();
+}
+
+static void fix_types_function(TypeFixer* fixer, FunctionItem* function) {
+    if (function->token_return_type.type == TOKEN_NOTHING) {
+        function->return_type = fixer->ast->type_void;
+    } else {
+        function->return_type = fix_types_type(fixer, function->token_return_type);
+    }
+    fix_types_block(fixer, function->block);
 }
 
 static void fix_types_item(TypeFixer* fixer, Item* item) {

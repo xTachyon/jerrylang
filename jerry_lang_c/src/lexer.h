@@ -38,6 +38,8 @@ typedef enum {
 
     TOKEN_FN,
     TOKEN_LET,
+    TOKEN_RETURN,
+    TOKEN_ARROW,
     TOKEN_TRUE,
     TOKEN_FALSE,
 
@@ -55,3 +57,4 @@ VECTOR_OF(Token, Token);
 VectorToken parse_tokens(const char* text, size_t text_size);
 void print_tokens(const char* text, const Token* tokens, size_t size);
 void remove_spaces(Token* tokens, size_t* size);
+Token empty_token();

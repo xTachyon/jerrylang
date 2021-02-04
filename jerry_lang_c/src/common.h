@@ -29,15 +29,15 @@ typedef uint64_t uint64;
         size_t size;                                                                                                   \
         size_t capacity;                                                                                               \
         size_t element_size;                                                                                           \
-    } Vector##name;                                                                                                  \
-    inline Vector##name create_vector_##name() {                                                                     \
-        Vector##name vector;                                                                                         \
+    } Vector##name;                                                                                                    \
+    inline Vector##name create_vector_##name() {                                                                       \
+        Vector##name vector;                                                                                           \
         vector.ptr          = NULL;                                                                                    \
         vector.size         = 0;                                                                                       \
         vector.capacity     = 0;                                                                                       \
         vector.element_size = sizeof(type);                                                                            \
         return vector;                                                                                                 \
-    }                                                                                                                  
+    }
 
 typedef struct VectorBase {
     uint8* ptr;
@@ -56,3 +56,9 @@ int string_compare(const char* first, size_t first_size, const char* second, siz
 #define zero_array(var) memset(var + 0, 0, sizeof(var))
 
 VECTOR_OF(void*, Void);
+
+#define make_string_stack(name_brrr, max_string_size, string, string_size)                                             \
+    bail_out_if(string_size + 1 <= max_string_size, "string too big");                                                 \
+    char name_brrr[max_string_size];                                                                                   \
+    strncpy(name_brrr, string, string_size);                                                                           \
+    name_brrr[string_size] = '\0';

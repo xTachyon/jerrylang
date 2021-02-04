@@ -34,11 +34,18 @@ typedef struct PrimitiveType {
 typedef enum StmtKind {
     STMT_NONE,
     STMT_VAR_ASSIGN,
+    STMT_RETURN,
 } StmtKind;
 
 typedef struct Stmt {
     StmtKind kind;
 } Stmt;
+
+typedef struct ReturnStmt {
+    Stmt base;
+
+    Expr* subexpr;
+} ReturnStmt;
 
 typedef struct VariableAssignment {
     Stmt stmt;
@@ -149,6 +156,7 @@ typedef struct FunctionItem {
     Item base;
 
     Token token_function_name;
+    Token token_return_type;
 
     const char* name;
     size_t name_size;
@@ -214,6 +222,7 @@ VECTOR_OF(Item*, ItemPtr);
 #define ITERATE_STMTS(impl, var, function_to_call, arg)                                                                \
     switch (var->kind) {                                                                                               \
         impl(var, var_assign, STMT_VAR_ASSIGN, VariableAssignment, function_to_call, arg);                             \
+        impl(var, return, STMT_RETURN, ReturnStmt, function_to_call, arg);                                             \
     default:                                                                                                           \
         abort();                                                                                                       \
     }
