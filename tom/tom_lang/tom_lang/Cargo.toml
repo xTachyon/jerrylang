@@ -1,0 +1,10 @@
+[package]
+name = "tom_lang"
+version = "0.1.0"
+authors = ["Andrei Damian <andreidaamian@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+llvm_free = { path = "../llvm_free" }
+pest = "2.1.3"
+pest_derive = "2.1.0"

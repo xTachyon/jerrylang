@@ -1,0 +1,10 @@
+[package]
+name = "llvm_free"
+version = "0.1.0"
+authors = ["Andrei Damian <andreidaamian@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+derive-new = "0.5.8"
+typed-arena = "2.0.1"
+id-arena = "2.2.1"

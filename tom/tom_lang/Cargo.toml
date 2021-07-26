@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "tom_lang",
+    "llvm_free"
+]
