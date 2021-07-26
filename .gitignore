@@ -35,3 +35,7 @@
 LoadThing/x64
 JerryLang/obj
 jerry_lang_c/x64
+LLVMnt/LLVMnt/bin/
+LLVMnt/working/
+LLVMnt/LLVMnt/Properties/launchSettings.json
+LLVMnt/LLVMnt/obj/
