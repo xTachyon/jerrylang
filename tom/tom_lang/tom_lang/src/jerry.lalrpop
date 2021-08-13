@@ -7,9 +7,24 @@ pub Item: Item = {
 }
 
 Function: Function = {
-    <loc_start:@L> "fn" <name:Ident> "(" <args:Comma<Arg>> ")" "{" "}" <loc_end:@L> => {
-        Function { loc: Location::new(loc_start, loc_end), name, args }
+    <loc_start:@L> "fn" <name:Ident> "(" <args:Comma<Arg>> ")" "{" <body:FunctionBody> "}" <loc_end:@L> => {
+        Function { loc: Location::new(loc_start, loc_end), name, args, body }
     }
+}
+
+FunctionBody: Vec<Stmt> = {
+    <stmts:Stmt*> => stmts
+}
+
+Stmt: Stmt = {
+    <expr:Expr> ";" => Stmt::Expr(expr),
+    "let" <name:Ident> "=" <expr:Expr> ";" => Stmt::VarDecl { name, expr: Box::new(expr) }
+}
+
+Expr: Expr = {
+    <loc_start:@L> r"[0-9]+" <loc_end:@L> => Expr::IntLit { loc: Location::new(loc_start, loc_end) },
+    <loc_start:@L> <name:Ident> "(" <exprs:Comma<Expr>> ")" <loc_end:@L> => Expr::FnCall { name, exprs },
+    <name:Ident> => Expr::Var { name }
 }
 
 Comma<T>: Vec<T> = {
