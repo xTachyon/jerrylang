@@ -2,3 +2,6 @@
 members = [
     "tom_lang",
 ]
+
+[profile.release]
+lto = true
