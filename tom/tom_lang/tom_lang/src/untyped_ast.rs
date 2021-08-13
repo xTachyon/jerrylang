@@ -18,5 +18,6 @@ pub enum Item {
 #[derive(Debug)]
 pub struct Function {
     pub loc: Location,
-    pub name: String
+    pub name: String,
+    pub args: Vec<(String, String)>
 }

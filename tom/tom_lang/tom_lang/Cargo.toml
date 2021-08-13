@@ -8,4 +8,5 @@ edition = "2018"
 lalrpop = "0.19.6"
 
 [dependencies]
+anyhow = "1.0.42"
 lalrpop-util = "0.19.6"
