@@ -34,7 +34,8 @@ pub enum Stmt {
 
 #[derive(Debug)]
 pub enum Expr {
-    IntLit { loc: Location },
+    IntLit { value: String },
+    StrLit { value: String },
     FnCall { name: String, exprs: Vec<Expr> },
     Var { name: String },
 }

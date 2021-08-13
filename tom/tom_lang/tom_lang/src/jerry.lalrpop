@@ -22,7 +22,8 @@ Stmt: Stmt = {
 }
 
 Expr: Expr = {
-    <loc_start:@L> r"[0-9]+" <loc_end:@L> => Expr::IntLit { loc: Location::new(loc_start, loc_end) },
+    <loc_start:@L> <value:r"[0-9]+"> <loc_end:@L> => Expr::IntLit { value: value.to_string() },
+    <value:r"'[^']*'"> => Expr::StrLit { value: (&value[1..value.len() - 1]).to_string() } ,
     <loc_start:@L> <name:Ident> "(" <exprs:Comma<Expr>> ")" <loc_end:@L> => Expr::FnCall { name, exprs },
     <name:Ident> => Expr::Var { name }
 }
