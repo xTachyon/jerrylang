@@ -1,3 +1,5 @@
+fn println(x: str);
+
 fn main() {
     let x = 5;
 }

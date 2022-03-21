@@ -20,11 +20,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn error(msg: &str) -> ! {
-        eprintln!("error: {}", msg);
-        std::process::exit(1);
-    }
-
     fn peek_kind(&self) -> TokenKind {
         self.tokens[self.offset].kind
     }
@@ -35,9 +30,7 @@ impl<'a> Parser<'a> {
             self.offset += 1;
             return ret;
         }
-        dbg!(kind);
-        dbg!(self.offset);
-        Parser::error("expected another token");
+        unimplemented!("expected {:?}, got {:?}", kind, self.tokens[self.offset].kind);
     }
 
     fn get_string(&self, token: &Token) -> String {
@@ -82,16 +75,35 @@ impl<'a> Parser<'a> {
         let name = self.match_tok(Ident);
         let name = self.get_string(&name);
         self.match_tok(OpenParen);
-        self.match_tok(ClosedParen);
-        self.match_tok(OpenBrace);
-
-        let mut stmts = Vec::new();
-        while self.peek_kind() != ClosedBrace {
-            stmts.push(self.parse_stmt());
+        let mut args = Vec::new();
+        while self.peek_kind() != ClosedParen {
+            let arg_name = self.match_tok(Ident);
+            let arg_name = self.get_string(&arg_name);
+            self.match_tok(Colon);
+            let ty_name = self.match_tok(Ident);
+            let ty_name = self.get_string(&ty_name);
+            let ty = match ty_name.as_str() {
+                "str" => Ast::TY_STR,
+                _ => unimplemented!()
+            };
+            args.push((arg_name, ty));
         }
-        self.match_tok(ClosedBrace);
+        self.match_tok(ClosedParen);
+        let stmts = if self.peek_kind() == Semi {
+            self.match_tok(Semi);
+            None
+        } else {
+            self.match_tok(OpenBrace);
 
-        Func { name, stmts }
+            let mut stmts = Vec::new();
+            while self.peek_kind() != ClosedBrace {
+                stmts.push(self.parse_stmt());
+            }
+            self.match_tok(ClosedBrace);
+            Some(stmts)
+        };
+
+        Func { name, args, stmts }
     }
 
     pub fn run(mut self) -> Ast {

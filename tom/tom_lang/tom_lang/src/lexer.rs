@@ -18,6 +18,7 @@ pub enum TokenKind {
     Percent,
 
     Semi,
+    Colon,
     Equal,
 
     NumberLit,
@@ -140,6 +141,7 @@ impl Lexer {
             '%' => Percent,
             '=' => Equal,
             ';' => Semi,
+            ':' => Colon,
             '(' => OpenParen,
             ')' => ClosedParen,
             '[' => OpenBracket,

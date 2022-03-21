@@ -1,6 +1,6 @@
 use std::ffi::{CString};
 use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, Local, Stmt, Ty, TyId};
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMInt64TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext};
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef};
 
 // Safety? We don't do that here.
@@ -58,6 +58,7 @@ pub struct Gen<'a> {
     builder: Builder,
 
     ty_void: LLVMTypeRef,
+    ty_i8: LLVMTypeRef,
     ty_i64: LLVMTypeRef,
 }
 
@@ -69,9 +70,10 @@ impl<'a> Gen<'a> {
             let builder = Builder::new(ctx);
 
             let ty_void = LLVMVoidTypeInContext(ctx);
+            let ty_i8 = LLVMInt8TypeInContext(ctx);
             let ty_i64 = LLVMInt64TypeInContext(ctx);
 
-            let mut gen = Gen { ast, ctx, module, builder, ty_void, ty_i64 };
+            let mut gen = Gen { ast, ctx, module, builder, ty_void, ty_i8, ty_i64 };
             for i in &ast.items {
                 gen.gen(&i);
             }
@@ -90,15 +92,27 @@ impl<'a> Gen<'a> {
     }
 
     unsafe fn gen_func(&mut self, func: &Func) {
-        let ty = self.builder.fn_type(self.ty_void, &[]);
+        let mut args = Vec::new();
+        for (_, ty) in func.args.iter() {
+            let ty = self.translate_ty(*ty);
+            args.push(ty);
+        }
+        let ty = self.builder.fn_type(self.ty_void, &args);
         let name = cstring!(func.name);
         let l_func = LLVMAddFunction(self.module, name.as_ptr(), ty);
 
-        let entry = self.builder.bb(l_func);
-        self.builder.set(entry);
+        for (index, i) in func.args.iter().enumerate() {
+            let arg = LLVMGetParam(l_func, index as u32);
+            LLVMSetValueName2(arg, i.0.as_ptr().cast(), i.0.len());
+        }
 
-        for i in &func.stmts {
-            self.gen_stmt(i);
+        if let Some(stmts) = &func.stmts {
+            let entry = self.builder.bb(l_func);
+            self.builder.set(entry);
+
+            for i in stmts {
+                self.gen_stmt(i);
+            }
         }
     }
 
@@ -128,7 +142,10 @@ impl<'a> Gen<'a> {
     }
 
     unsafe fn translate_builtin(&mut self, builtin: &BuiltinTy) -> LLVMTypeRef {
-        match builtin { BuiltinTy::I64 => self.ty_i64 }
+        match builtin {
+            BuiltinTy::I64 => self.ty_i64,
+            BuiltinTy::Str => LLVMPointerType(self.ty_i8, 0)
+        }
     }
 }
 

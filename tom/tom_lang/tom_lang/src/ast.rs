@@ -6,10 +6,12 @@ pub struct Ast {
 
 impl Ast {
     pub const TY_I64: TyId = TyId(0);
+    pub const TY_STR: TyId = TyId(1);
 
     pub fn new() -> Ast {
         let mut tys = Vec::with_capacity(16);
         tys.push(Ty::Builtin(BuiltinTy::I64)); // 0
+        tys.push(Ty::Builtin(BuiltinTy::Str)); // 1
 
         Ast { items: Vec::new(), tys }
     }
@@ -33,7 +35,8 @@ pub enum Item {
 #[derive(Debug)]
 pub struct Func {
     pub name: String,
-    pub stmts: Vec<Stmt>,
+    pub args: Vec<(String, TyId)>,
+    pub stmts: Option<Vec<Stmt>>,
 }
 
 #[derive(Debug)]
@@ -66,7 +69,8 @@ impl Expr {
 
 #[derive(Debug)]
 pub enum BuiltinTy {
-    I64
+    I64,
+    Str,
 }
 
 #[derive(Debug)]
