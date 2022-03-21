@@ -1,24 +1,21 @@
-mod untyped_ast;
+mod lexer;
+mod parser;
 
-use lalrpop_util::lalrpop_mod;
+use crate::lexer::Lexer;
+use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use anyhow::Result;
-use anyhow::Error;
-
-lalrpop_mod!(pub jerry);
 
 fn do_for(path: &Path) -> Result<()> {
     println!("doing {}...", path.to_string_lossy());
     let text = fs::read_to_string(path)?;
 
-    match jerry::ItemParser::new().parse(&text) {
-        Ok(x) => {
-            println!("{:?}", x);
-            Ok(())
-        }
-        Err(e) => Err(Error::msg(format!("{:?}", e)))
+    let tokens = Lexer::lex(&text);
+    for i in tokens {
+        println!("{:?} -> '{}'", i.kind, &text[i.loc.start()..i.loc.end()]);
     }
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
