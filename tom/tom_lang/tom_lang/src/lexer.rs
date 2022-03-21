@@ -19,10 +19,11 @@ pub enum TokenKind {
 
     Semi,
     Colon,
+    Comma,
     Equal,
 
     NumberLit,
-    // StringLit,
+    StringLit,
     Whitespace,
     Eof,
 }
@@ -142,6 +143,7 @@ impl Lexer {
             '=' => Equal,
             ';' => Semi,
             ':' => Colon,
+            ',' => Comma,
             '(' => OpenParen,
             ')' => ClosedParen,
             '[' => OpenBracket,
@@ -169,8 +171,15 @@ impl Lexer {
                 }
                 TokenKind::Whitespace
             }
+            '"' => {
+                while self.peek() != '"' {
+                    self.next();
+                }
+                self.next();
+                TokenKind::StringLit
+            }
             '\0' => TokenKind::Eof,
-            _ => Lexer::error("unknown char"),
+            _ => unimplemented!("unknown char `{}`", ch),
         };
 
         if kind == Whitespace {

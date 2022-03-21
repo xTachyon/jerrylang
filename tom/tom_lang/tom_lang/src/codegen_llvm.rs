@@ -1,14 +1,16 @@
-use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, Local, Stmt, Ty, TyId};
+use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, ItemId, Local, Stmt, Ty, TyId};
 use llvm_sys::core::{
-    LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildStore, LLVMConstInt,
-    LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder,
-    LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext,
-    LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType,
-    LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext,
+    LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall,
+    LLVMBuildGlobalStringPtr, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
+    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType,
+    LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
+    LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2,
+    LLVMVoidTypeInContext,
 };
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
 };
+use std::collections::HashMap;
 use std::ffi::CString;
 
 // Safety? We don't do that here.
@@ -63,10 +65,21 @@ impl Builder {
     unsafe fn store(&mut self, value: LLVMValueRef, ptr: LLVMValueRef) -> LLVMValueRef {
         LLVMBuildStore(self.builder, value, ptr)
     }
+
+    unsafe fn call(&mut self, func: LLVMValueRef, args: &[LLVMValueRef]) -> LLVMValueRef {
+        LLVMBuildCall(
+            self.builder,
+            func,
+            args.as_ptr() as *mut _,
+            args.len() as u32,
+            b"\0".as_ptr().cast(),
+        )
+    }
 }
 
 pub struct Gen<'a> {
     ast: &'a Ast,
+    symbols: HashMap<ItemId, LLVMValueRef>,
 
     ctx: LLVMContextRef,
     module: LLVMModuleRef,
@@ -90,6 +103,7 @@ impl<'a> Gen<'a> {
 
             let mut gen = Gen {
                 ast,
+                symbols: HashMap::new(),
                 ctx,
                 module,
                 builder,
@@ -97,8 +111,8 @@ impl<'a> Gen<'a> {
                 ty_i8,
                 ty_i64,
             };
-            for i in &ast.items {
-                gen.gen(&i);
+            for (index, item) in ast.items.iter().enumerate() {
+                gen.gen(&item, ItemId(index as u32));
             }
 
             let str_raw = LLVMPrintModuleToString(module); // todo: leak eh
@@ -108,13 +122,13 @@ impl<'a> Gen<'a> {
         }
     }
 
-    unsafe fn gen(&mut self, item: &Item) {
+    unsafe fn gen(&mut self, item: &Item, id: ItemId) {
         match item {
-            Item::Func(func) => self.gen_func(func),
+            Item::Func(func) => self.gen_func(func, id),
         }
     }
 
-    unsafe fn gen_func(&mut self, func: &Func) {
+    unsafe fn gen_func(&mut self, func: &Func, id: ItemId) {
         let mut args = Vec::new();
         for (_, ty) in func.args.iter() {
             let ty = self.translate_ty(*ty);
@@ -129,6 +143,8 @@ impl<'a> Gen<'a> {
             LLVMSetValueName2(arg, i.0.as_ptr().cast(), i.0.len());
         }
 
+        self.symbols.insert(id, l_func);
+
         if let Some(stmts) = &func.stmts {
             let entry = self.builder.bb(l_func);
             self.builder.set(entry);
@@ -140,15 +156,32 @@ impl<'a> Gen<'a> {
     }
 
     unsafe fn gen_expr(&mut self, expr: &Expr) -> LLVMValueRef {
+        use ExprKind::*;
         let ty = self.translate_ty(expr.ty);
-        match expr.kind {
-            ExprKind::NumberLit(x) => LLVMConstInt(ty, x as u64, 0),
+        match &expr.kind {
+            NumberLit(x) => LLVMConstInt(ty, *x as u64, 0),
+            StringLit(x) => {
+                let str = cstring!(x.as_str());
+                LLVMBuildGlobalStringPtr(self.builder.builder, str.as_ptr(), b"\0".as_ptr().cast())
+            }
+            FuncCall(x) => {
+                let mut args = Vec::new();
+                for i in x.args.iter() {
+                    args.push(self.gen_expr(i));
+                }
+                let func = *self.symbols.get(&x.func).unwrap();
+                self.builder.call(func, &args)
+            }
         }
     }
 
     unsafe fn gen_stmt(&mut self, stmt: &Stmt) {
+        use Stmt::*;
         match stmt {
-            Stmt::Local(local) => self.gen_local(local),
+            Local(local) => self.gen_local(local),
+            Expr(expr) => {
+                self.gen_expr(expr);
+            }
         }
     }
 
@@ -161,7 +194,7 @@ impl<'a> Gen<'a> {
     }
 
     unsafe fn translate_ty(&mut self, ty: TyId) -> LLVMTypeRef {
-        match self.ast.get(ty) {
+        match self.ast.ty(ty) {
             Ty::Builtin(builtin) => self.translate_builtin(builtin),
         }
     }
@@ -170,6 +203,7 @@ impl<'a> Gen<'a> {
         match builtin {
             BuiltinTy::I64 => self.ty_i64,
             BuiltinTy::Str => LLVMPointerType(self.ty_i8, 0),
+            BuiltinTy::Void => self.ty_void,
         }
     }
 }

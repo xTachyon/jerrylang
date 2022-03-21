@@ -1,4 +1,4 @@
-use crate::ast::{Ast, Expr, Item, Local, Stmt};
+use crate::ast::{Ast, Expr, FuncCall, Item, Local, Stmt};
 use crate::ast::{ExprKind, Func};
 use crate::lexer::{Token, TokenKind};
 use TokenKind::*;
@@ -24,6 +24,11 @@ impl<'a> Parser<'a> {
         self.tokens[self.offset].kind
     }
 
+    fn match_tok_string(&mut self, kind: TokenKind) -> String {
+        let token = self.match_tok(kind);
+        self.get_string(&token)
+    }
+
     fn match_tok(&mut self, kind: TokenKind) -> Token {
         if self.tokens[self.offset].kind == kind {
             let ret = self.tokens[self.offset];
@@ -42,7 +47,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr(&mut self) -> Expr {
-        match self.peek_kind() {
+        let kind = self.peek_kind();
+        match kind {
             NumberLit => {
                 let number = self.match_tok(NumberLit);
                 let number: i64 = self.get_string(&number).parse().unwrap();
@@ -50,7 +56,40 @@ impl<'a> Parser<'a> {
 
                 Expr::new(kind, Ast::TY_I64)
             }
-            _ => unimplemented!(),
+            StringLit => {
+                let string = self.match_tok(StringLit);
+                let mut string = self.get_string(&string);
+                string.pop();
+                string.remove(0);
+                let kind = ExprKind::StringLit(string);
+
+                Expr::new(kind, Ast::TY_STR)
+            }
+            Ident => {
+                let name = self.match_tok_string(Ident);
+                self.match_tok(OpenParen);
+                let mut args = Vec::new();
+                while self.peek_kind() != ClosedParen {
+                    args.push(self.parse_expr());
+                    match self.peek_kind() {
+                        Comma => {
+                            self.match_tok(Comma);
+                        }
+                        _ => break,
+                    }
+                }
+                self.match_tok(ClosedParen);
+
+                let func_id = *self.ast.symbols.get(&name).unwrap();
+                let func = self.ast.func(func_id);
+                let kind = ExprKind::FuncCall(FuncCall {
+                    func: func_id,
+                    args,
+                });
+
+                Expr::new(kind, func.return_ty)
+            }
+            _ => unimplemented!("kind: {:?}", kind),
         }
     }
 
@@ -60,7 +99,6 @@ impl<'a> Parser<'a> {
         let name = self.get_string(&name);
         self.match_tok(Equal);
         let init = self.parse_expr();
-        self.match_tok(Semi);
 
         let local = Local { name, init };
         Stmt::Local(local)
@@ -68,10 +106,12 @@ impl<'a> Parser<'a> {
 
     fn parse_stmt(&mut self) -> Stmt {
         let kind = self.peek_kind();
-        match kind {
+        let ret = match kind {
             Let => self.parse_local(),
-            _ => unimplemented!("{:?}", kind),
-        }
+            _ => Stmt::Expr(self.parse_expr()),
+        };
+        self.match_tok(Semi);
+        ret
     }
 
     fn parse_fn(&mut self) -> Func {
@@ -107,18 +147,29 @@ impl<'a> Parser<'a> {
             Some(stmts)
         };
 
-        Func { name, args, stmts }
+        Func {
+            name,
+            return_ty: Ast::TY_VOID,
+            args,
+            stmts,
+        }
     }
 
     pub fn run(mut self) -> Ast {
         let current = self.peek_kind();
 
         while self.peek_kind() != Eof {
+            let name;
             let item = match current {
-                Fn => Item::Func(self.parse_fn()),
+                Fn => {
+                    let func = self.parse_fn();
+                    name = func.name.clone();
+                    Item::Func(func)
+                }
                 _ => unimplemented!(),
             };
-            self.ast.items.push(item);
+            let id = self.ast.push(item);
+            self.ast.symbols.insert(name, id);
         }
 
         self.ast
