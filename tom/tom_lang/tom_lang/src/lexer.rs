@@ -150,16 +150,13 @@ impl Lexer {
             ']' => ClosedBracket,
             '{' => OpenBrace,
             '}' => ClosedBrace,
-            'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n'
-            | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z' | 'A' | 'B'
-            | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P'
-            | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z' | '_' => {
+            'a' ..= 'z' | 'A' ..= 'Z' | '_' => {
                 while Lexer::is_ident_continue(self.peek()) {
                     self.next();
                 }
                 Lexer::get_keyword(&self.text[original_offset..self.offset]).unwrap_or(Ident)
             }
-            '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
+            '0' ..= '9' => {
                 while self.peek().is_ascii_digit() {
                     self.next();
                 }
