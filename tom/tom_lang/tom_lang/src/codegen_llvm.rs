@@ -6,13 +6,23 @@ use llvm_sys::core::{
     LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule,
     LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext,
     LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext,
+    LLVMPrintModuleToString, LLVMSetTarget, LLVMSetValueName2, LLVMVoidTypeInContext,
 };
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
 };
+use llvm_sys::target::{
+    LLVMSetModuleDataLayout, LLVM_InitializeAllAsmParsers, LLVM_InitializeAllAsmPrinters,
+    LLVM_InitializeAllDisassemblers, LLVM_InitializeAllTargetInfos, LLVM_InitializeAllTargetMCs,
+    LLVM_InitializeAllTargets,
+};
+use llvm_sys::target_machine::{
+    LLVMCodeGenOptLevel, LLVMCodeModel, LLVMCreateTargetDataLayout, LLVMCreateTargetMachine,
+    LLVMGetDefaultTargetTriple, LLVMGetTargetFromTriple, LLVMRelocMode,
+};
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::ptr::null_mut;
 
 // Safety? We don't do that here.
 
@@ -98,9 +108,33 @@ pub struct Gen<'a> {
 impl<'a> Gen<'a> {
     pub fn run(ast: &Ast) {
         unsafe {
+            LLVM_InitializeAllTargets();
+            LLVM_InitializeAllTargetInfos();
+            LLVM_InitializeAllAsmParsers();
+            LLVM_InitializeAllDisassemblers();
+            LLVM_InitializeAllTargetMCs();
+            LLVM_InitializeAllAsmPrinters();
+
             let ctx = LLVMContextCreate();
             let module = LLVMModuleCreateWithNameInContext(b"jerry\0".as_ptr().cast(), ctx);
             let builder = Builder::new(ctx);
+
+            let default_triple = LLVMGetDefaultTargetTriple();
+            let mut target = null_mut();
+            LLVMGetTargetFromTriple(default_triple, &mut target, null_mut());
+            let target_machine = LLVMCreateTargetMachine(
+                target,
+                default_triple,
+                std::ptr::null(),
+                std::ptr::null(),
+                LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault,
+                LLVMRelocMode::LLVMRelocPIC,
+                LLVMCodeModel::LLVMCodeModelDefault,
+            );
+
+            let target_data = LLVMCreateTargetDataLayout(target_machine);
+            LLVMSetModuleDataLayout(module, target_data);
+            LLVMSetTarget(module, default_triple);
 
             let ty_void = LLVMVoidTypeInContext(ctx);
             let ty_i8 = LLVMInt8TypeInContext(ctx);
