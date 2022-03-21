@@ -1,11 +1,12 @@
 use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, ItemId, Local, Stmt, Ty, TyId};
+use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyModule};
 use llvm_sys::core::{
     LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall,
-    LLVMBuildGlobalStringPtr, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose,
-    LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType,
-    LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
-    LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2,
-    LLVMVoidTypeInContext,
+    LLVMBuildGlobalStringPtr, LLVMBuildRetVoid, LLVMBuildStore, LLVMConstInt, LLVMContextCreate,
+    LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule,
+    LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext,
+    LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd,
+    LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext,
 };
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
@@ -75,6 +76,10 @@ impl Builder {
             b"\0".as_ptr().cast(),
         )
     }
+
+    unsafe fn ret_void(&mut self) -> LLVMValueRef {
+        LLVMBuildRetVoid(self.builder)
+    }
 }
 
 pub struct Gen<'a> {
@@ -119,6 +124,12 @@ impl<'a> Gen<'a> {
             let c_string = CString::from_raw(str_raw);
             let str = c_string.to_str().unwrap();
             std::fs::write("jerry.ll", str).unwrap();
+
+            LLVMVerifyModule(
+                module,
+                LLVMVerifierFailureAction::LLVMAbortProcessAction,
+                std::ptr::null_mut(),
+            );
         }
     }
 
@@ -152,6 +163,10 @@ impl<'a> Gen<'a> {
             for i in stmts {
                 self.gen_stmt(i);
             }
+        }
+
+        if func.return_ty == Ast::TY_VOID {
+            self.builder.ret_void();
         }
     }
 

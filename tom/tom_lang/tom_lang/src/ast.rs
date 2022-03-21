@@ -104,7 +104,7 @@ pub enum Ty {
     Builtin(BuiltinTy),
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct TyId(u32);
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
