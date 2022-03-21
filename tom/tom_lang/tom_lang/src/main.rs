@@ -1,14 +1,14 @@
 mod ast;
+mod codegen_llvm;
 mod lexer;
 mod parser;
-mod codegen_llvm;
 
+use crate::codegen_llvm::Gen;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use crate::codegen_llvm::Gen;
 
 fn do_for(path: &Path) -> Result<()> {
     println!("doing {}...", path.to_string_lossy());

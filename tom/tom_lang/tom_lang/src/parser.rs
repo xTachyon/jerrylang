@@ -1,5 +1,5 @@
-use crate::ast::{ExprKind, Func};
 use crate::ast::{Ast, Expr, Item, Local, Stmt};
+use crate::ast::{ExprKind, Func};
 use crate::lexer::{Token, TokenKind};
 use TokenKind::*;
 
@@ -30,7 +30,11 @@ impl<'a> Parser<'a> {
             self.offset += 1;
             return ret;
         }
-        unimplemented!("expected {:?}, got {:?}", kind, self.tokens[self.offset].kind);
+        unimplemented!(
+            "expected {:?}, got {:?}",
+            kind,
+            self.tokens[self.offset].kind
+        );
     }
 
     fn get_string(&self, token: &Token) -> String {
@@ -84,7 +88,7 @@ impl<'a> Parser<'a> {
             let ty_name = self.get_string(&ty_name);
             let ty = match ty_name.as_str() {
                 "str" => Ast::TY_STR,
-                _ => unimplemented!()
+                _ => unimplemented!(),
             };
             args.push((arg_name, ty));
         }

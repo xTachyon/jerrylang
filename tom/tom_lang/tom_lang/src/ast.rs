@@ -13,7 +13,10 @@ impl Ast {
         tys.push(Ty::Builtin(BuiltinTy::I64)); // 0
         tys.push(Ty::Builtin(BuiltinTy::Str)); // 1
 
-        Ast { items: Vec::new(), tys }
+        Ast {
+            items: Vec::new(),
+            tys,
+        }
     }
 
     pub fn get(&self, ty: TyId) -> &Ty {
@@ -75,7 +78,7 @@ pub enum BuiltinTy {
 
 #[derive(Debug)]
 pub enum Ty {
-    Builtin(BuiltinTy)
+    Builtin(BuiltinTy),
 }
 
 #[derive(Debug, Copy, Clone)]

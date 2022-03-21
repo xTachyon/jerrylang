@@ -1,12 +1,22 @@
-use std::ffi::{CString};
 use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, Local, Stmt, Ty, TyId};
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext};
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef};
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildStore, LLVMConstInt,
+    LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder,
+    LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext,
+    LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType,
+    LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetValueName2, LLVMVoidTypeInContext,
+};
+use llvm_sys::prelude::{
+    LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
+};
+use std::ffi::CString;
 
 // Safety? We don't do that here.
 
 macro_rules! cstring {
-    ($e:expr) => { CString::new(&*$e).unwrap() };
+    ($e:expr) => {
+        CString::new(&*$e).unwrap()
+    };
 }
 
 struct Builder {
@@ -29,7 +39,12 @@ impl Builder {
     }
 
     unsafe fn fn_type(&mut self, return_ty: LLVMTypeRef, params: &[LLVMTypeRef]) -> LLVMTypeRef {
-        LLVMFunctionType(return_ty, params.as_ptr() as *mut _, params.len() as u32, false as i32)
+        LLVMFunctionType(
+            return_ty,
+            params.as_ptr() as *mut _,
+            params.len() as u32,
+            false as i32,
+        )
     }
 
     unsafe fn set(&mut self, bb: LLVMBasicBlockRef) {
@@ -73,7 +88,15 @@ impl<'a> Gen<'a> {
             let ty_i8 = LLVMInt8TypeInContext(ctx);
             let ty_i64 = LLVMInt64TypeInContext(ctx);
 
-            let mut gen = Gen { ast, ctx, module, builder, ty_void, ty_i8, ty_i64 };
+            let mut gen = Gen {
+                ast,
+                ctx,
+                module,
+                builder,
+                ty_void,
+                ty_i8,
+                ty_i64,
+            };
             for i in &ast.items {
                 gen.gen(&i);
             }
@@ -87,7 +110,7 @@ impl<'a> Gen<'a> {
 
     unsafe fn gen(&mut self, item: &Item) {
         match item {
-            Item::Func(func) => self.gen_func(func)
+            Item::Func(func) => self.gen_func(func),
         }
     }
 
@@ -119,12 +142,14 @@ impl<'a> Gen<'a> {
     unsafe fn gen_expr(&mut self, expr: &Expr) -> LLVMValueRef {
         let ty = self.translate_ty(expr.ty);
         match expr.kind {
-            ExprKind::NumberLit(x) => LLVMConstInt(ty, x as u64, 0)
+            ExprKind::NumberLit(x) => LLVMConstInt(ty, x as u64, 0),
         }
     }
 
     unsafe fn gen_stmt(&mut self, stmt: &Stmt) {
-        match stmt { Stmt::Local(local) => self.gen_local(local) }
+        match stmt {
+            Stmt::Local(local) => self.gen_local(local),
+        }
     }
 
     unsafe fn gen_local(&mut self, local: &Local) {
@@ -137,14 +162,14 @@ impl<'a> Gen<'a> {
 
     unsafe fn translate_ty(&mut self, ty: TyId) -> LLVMTypeRef {
         match self.ast.get(ty) {
-            Ty::Builtin(builtin) => self.translate_builtin(builtin)
+            Ty::Builtin(builtin) => self.translate_builtin(builtin),
         }
     }
 
     unsafe fn translate_builtin(&mut self, builtin: &BuiltinTy) -> LLVMTypeRef {
         match builtin {
             BuiltinTy::I64 => self.ty_i64,
-            BuiltinTy::Str => LLVMPointerType(self.ty_i8, 0)
+            BuiltinTy::Str => LLVMPointerType(self.ty_i8, 0),
         }
     }
 }
