@@ -1,26 +1,32 @@
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum TokenKind {
     Ident,
+    Fn,
+    Let,
+
     OpenParen,
     ClosedParen,
     OpenBrace,
     ClosedBrace,
     OpenBracket,
     ClosedBracket,
+
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
+
     Semi,
     Equal,
+
     NumberLit,
     // StringLit,
     Whitespace,
-    Eof
+    Eof,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Location {
     start_p: u32,
     end_p: u32,
@@ -43,7 +49,7 @@ impl Location {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Token {
     pub kind: TokenKind,
     pub loc: Location,
@@ -110,6 +116,16 @@ impl Lexer {
         Lexer::is_ident_start(ch) || ch.is_ascii_digit()
     }
 
+    fn get_keyword(input: &[u8]) -> Option<TokenKind> {
+        let input = std::str::from_utf8(input).unwrap();
+        let ret = match input {
+            "fn" => TokenKind::Fn,
+            "let" => TokenKind::Let,
+            _ => return None,
+        };
+        Some(ret)
+    }
+
     fn run_one(&mut self) {
         use TokenKind::*;
 
@@ -137,7 +153,7 @@ impl Lexer {
                 while Lexer::is_ident_continue(self.peek()) {
                     self.next();
                 }
-                TokenKind::Ident
+                Lexer::get_keyword(&self.text[original_offset..self.offset]).unwrap_or(Ident)
             }
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => {
                 while self.peek().is_ascii_digit() {
@@ -151,9 +167,7 @@ impl Lexer {
                 }
                 TokenKind::Whitespace
             }
-            '\0' => {
-                TokenKind::Eof
-            }
+            '\0' => TokenKind::Eof,
             _ => Lexer::error("unknown char"),
         };
 
@@ -161,7 +175,11 @@ impl Lexer {
             return;
         }
 
-        let end = if kind == Eof { self.offset - 1 } else { self.offset };
+        let end = if kind == Eof {
+            self.offset - 1
+        } else {
+            self.offset
+        };
         self.tokens.push(Token {
             kind,
             loc: Location::new(original_offset, end),

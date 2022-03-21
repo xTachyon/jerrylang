@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.42"
+llvm-sys = "130.0.3"

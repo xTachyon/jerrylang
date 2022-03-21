@@ -1,19 +1,28 @@
+mod ast;
 mod lexer;
 mod parser;
+mod codegen_llvm;
 
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
+use crate::codegen_llvm::Gen;
 
 fn do_for(path: &Path) -> Result<()> {
     println!("doing {}...", path.to_string_lossy());
     let text = fs::read_to_string(path)?;
 
     let tokens = Lexer::lex(&text);
-    for i in tokens {
+    for i in &tokens {
         println!("{:?} -> '{}'", i.kind, &text[i.loc.start()..i.loc.end()]);
     }
+
+    let ast = Parser::new(&tokens, &text).run();
+    dbg!(&ast);
+
+    Gen::run(&ast);
 
     Ok(())
 }
