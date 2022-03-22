@@ -9,14 +9,16 @@ pub struct Ast {
 
 impl Ast {
     pub const TY_VOID: TyId = TyId(0);
-    pub const TY_I64: TyId = TyId(1);
-    pub const TY_STR: TyId = TyId(2);
+    pub const TY_BOOL: TyId = TyId(1);
+    pub const TY_I64: TyId = TyId(2);
+    pub const TY_STR: TyId = TyId(3);
 
     pub fn new() -> Ast {
         let mut tys = Vec::with_capacity(16);
         tys.push(Ty::Builtin(BuiltinTy::Void)); // 0
-        tys.push(Ty::Builtin(BuiltinTy::I64)); // 1
-        tys.push(Ty::Builtin(BuiltinTy::Str)); // 2
+        tys.push(Ty::Builtin(BuiltinTy::Bool)); // 1
+        tys.push(Ty::Builtin(BuiltinTy::I64)); // 2
+        tys.push(Ty::Builtin(BuiltinTy::Str)); // 3
 
         Ast {
             items: Vec::new(),
@@ -59,12 +61,12 @@ pub struct Func {
 pub enum Stmt {
     Expr(Expr),
     Local(Local),
-    Return(Return)
+    Return(Return),
 }
 
 #[derive(Debug)]
 pub struct Return {
-    pub value: Option<Expr>
+    pub value: Option<Expr>,
 }
 
 #[derive(Debug)]
@@ -82,6 +84,7 @@ pub struct FuncCall {
 #[derive(Debug)]
 pub enum ExprKind {
     NumberLit(i64),
+    BoolLit(bool),
     StringLit(String),
     FuncCall(FuncCall),
 }
@@ -101,6 +104,7 @@ impl Expr {
 #[derive(Debug)]
 pub enum BuiltinTy {
     Void,
+    Bool,
     I64,
     Str,
 }
@@ -112,6 +116,12 @@ pub enum Ty {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct TyId(u32);
+
+impl TyId {
+    pub fn is_void(&self) -> bool {
+        *self == Ast::TY_VOID
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct ItemId(pub u32);

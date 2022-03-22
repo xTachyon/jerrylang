@@ -1,6 +1,7 @@
 fn println(x: str);
 
-fn f() -> i64 {
+fn f(x: i64) -> i64 {
+    let b = true;
     return 10;
 }
 

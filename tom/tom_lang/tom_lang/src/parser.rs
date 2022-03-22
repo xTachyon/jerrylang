@@ -56,6 +56,13 @@ impl<'a> Parser<'a> {
 
                 Expr::new(kind, Ast::TY_I64)
             }
+            True | False => {
+                let value = kind == True;
+                self.match_tok(kind);
+                let kind = ExprKind::BoolLit(value);
+
+                Expr::new(kind, Ast::TY_BOOL)
+            }
             StringLit => {
                 let string = self.match_tok(StringLit);
                 let mut string = self.get_string(&string);

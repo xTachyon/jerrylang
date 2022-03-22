@@ -6,6 +6,8 @@ pub enum TokenKind {
     Fn,
     Let,
     Return,
+    True,
+    False,
 
     OpenParen,
     ClosedParen,
@@ -129,6 +131,8 @@ impl Lexer {
             "fn" => Fn,
             "let" => Let,
             "return" => Return,
+            "true" => True,
+            "false" => False,
             _ => return None,
         };
         Some(ret)
@@ -157,7 +161,9 @@ impl Lexer {
                 if self.peek() == '>' {
                     self.next();
                     Arrow
-                } else { Minus }
+                } else {
+                    Minus
+                }
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 while Lexer::is_ident_continue(self.peek()) {

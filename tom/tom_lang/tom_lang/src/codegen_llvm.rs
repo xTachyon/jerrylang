@@ -1,6 +1,14 @@
 use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, ItemId, Local, Stmt, Ty, TyId};
 use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyModule};
-use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall, LLVMBuildGlobalStringPtr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetTarget, LLVMSetValueName2, LLVMVoidTypeInContext};
+use llvm_sys::core::{
+    LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall,
+    LLVMBuildGlobalStringPtr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMConstInt,
+    LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder,
+    LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt1TypeInContext,
+    LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
+    LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetTarget,
+    LLVMSetValueName2, LLVMVoidTypeInContext,
+};
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
 };
@@ -98,6 +106,7 @@ pub struct Gen<'a> {
     builder: Builder,
 
     ty_void: LLVMTypeRef,
+    ty_i1: LLVMTypeRef,
     ty_i8: LLVMTypeRef,
     ty_i64: LLVMTypeRef,
 }
@@ -134,6 +143,7 @@ impl<'a> Gen<'a> {
             LLVMSetTarget(module, default_triple);
 
             let ty_void = LLVMVoidTypeInContext(ctx);
+            let ty_i1 = LLVMInt1TypeInContext(ctx);
             let ty_i8 = LLVMInt8TypeInContext(ctx);
             let ty_i64 = LLVMInt64TypeInContext(ctx);
 
@@ -144,6 +154,7 @@ impl<'a> Gen<'a> {
                 module,
                 builder,
                 ty_void,
+                ty_i1,
                 ty_i8,
                 ty_i64,
             };
@@ -206,6 +217,7 @@ impl<'a> Gen<'a> {
         use ExprKind::*;
         let ty = self.translate_ty(expr.ty);
         match &expr.kind {
+            BoolLit(x) => LLVMConstInt(ty, *x as u64, 0),
             NumberLit(x) => LLVMConstInt(ty, *x as u64, 0),
             StringLit(x) => {
                 let str = cstring!(x.as_str());
@@ -254,6 +266,7 @@ impl<'a> Gen<'a> {
 
     unsafe fn translate_builtin(&mut self, builtin: &BuiltinTy) -> LLVMTypeRef {
         match builtin {
+            BuiltinTy::Bool => self.ty_i1,
             BuiltinTy::I64 => self.ty_i64,
             BuiltinTy::Str => LLVMPointerType(self.ty_i8, 0),
             BuiltinTy::Void => self.ty_void,

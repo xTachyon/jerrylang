@@ -1,8 +1,10 @@
 mod ast;
+mod ast_printer;
 mod codegen_llvm;
 mod lexer;
 mod parser;
 
+use crate::ast_printer::print_ast;
 use crate::codegen_llvm::Gen;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -15,12 +17,17 @@ fn do_for(path: &Path) -> Result<()> {
     let text = fs::read_to_string(path)?;
 
     let tokens = Lexer::lex(&text);
-    for i in &tokens {
-        println!("{:?} -> '{}'", i.kind, &text[i.loc.start()..i.loc.end()]);
+    for (index, i) in tokens.iter().enumerate() {
+        println!(
+            "{}. {:?} -> '{}'",
+            index,
+            i.kind,
+            &text[i.loc.start()..i.loc.end()]
+        );
     }
 
     let ast = Parser::new(&tokens, &text).run();
-    dbg!(&ast);
+    println!("\n{}", print_ast(&ast)?);
 
     Gen::run(&ast);
 
