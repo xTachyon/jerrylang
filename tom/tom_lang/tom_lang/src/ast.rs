@@ -57,8 +57,14 @@ pub struct Func {
 
 #[derive(Debug)]
 pub enum Stmt {
-    Local(Local),
     Expr(Expr),
+    Local(Local),
+    Return(Return)
+}
+
+#[derive(Debug)]
+pub struct Return {
+    pub value: Option<Expr>
 }
 
 #[derive(Debug)]

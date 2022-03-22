@@ -7,6 +7,10 @@ target triple = "x86_64-pc-windows-msvc"
 
 declare void @println(i8*)
 
+define i64 @f() {
+  ret i64 10
+}
+
 define void @main() {
   %x = alloca i64, align 8
   store i64 5, i64* %x, align 8

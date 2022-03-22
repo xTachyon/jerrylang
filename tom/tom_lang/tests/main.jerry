@@ -1,5 +1,9 @@
 fn println(x: str);
 
+fn f() -> i64 {
+    return 10;
+}
+
 fn main() {
     let x = 5;
     println("abc");

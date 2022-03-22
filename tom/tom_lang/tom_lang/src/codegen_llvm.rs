@@ -1,13 +1,6 @@
 use crate::ast::{Ast, BuiltinTy, Expr, ExprKind, Func, Item, ItemId, Local, Stmt, Ty, TyId};
 use llvm_sys::analysis::{LLVMVerifierFailureAction, LLVMVerifyModule};
-use llvm_sys::core::{
-    LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall,
-    LLVMBuildGlobalStringPtr, LLVMBuildRetVoid, LLVMBuildStore, LLVMConstInt, LLVMContextCreate,
-    LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule,
-    LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext,
-    LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd,
-    LLVMPrintModuleToString, LLVMSetTarget, LLVMSetValueName2, LLVMVoidTypeInContext,
-};
+use llvm_sys::core::{LLVMAddFunction, LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildCall, LLVMBuildGlobalStringPtr, LLVMBuildRet, LLVMBuildRetVoid, LLVMBuildStore, LLVMConstInt, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetParam, LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMSetTarget, LLVMSetValueName2, LLVMVoidTypeInContext};
 use llvm_sys::prelude::{
     LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
 };
@@ -89,6 +82,10 @@ impl Builder {
 
     unsafe fn ret_void(&mut self) -> LLVMValueRef {
         LLVMBuildRetVoid(self.builder)
+    }
+
+    unsafe fn ret(&mut self, value: LLVMValueRef) -> LLVMValueRef {
+        LLVMBuildRet(self.builder, value)
     }
 }
 
@@ -179,7 +176,8 @@ impl<'a> Gen<'a> {
             let ty = self.translate_ty(*ty);
             args.push(ty);
         }
-        let ty = self.builder.fn_type(self.ty_void, &args);
+        let ret_ty = self.translate_ty(func.return_ty);
+        let ty = self.builder.fn_type(ret_ty, &args);
         let name = cstring!(func.name);
         let l_func = LLVMAddFunction(self.module, name.as_ptr(), ty);
 
@@ -227,9 +225,15 @@ impl<'a> Gen<'a> {
     unsafe fn gen_stmt(&mut self, stmt: &Stmt) {
         use Stmt::*;
         match stmt {
-            Local(local) => self.gen_local(local),
             Expr(expr) => {
                 self.gen_expr(expr);
+            }
+            Local(local) => self.gen_local(local),
+            Return(ret) => {
+                if let Some(value) = &ret.value {
+                    let value = self.gen_expr(value);
+                    self.builder.ret(value);
+                }
             }
         }
     }

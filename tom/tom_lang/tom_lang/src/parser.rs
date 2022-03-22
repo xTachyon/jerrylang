@@ -1,4 +1,4 @@
-use crate::ast::{Ast, Expr, FuncCall, Item, Local, Stmt};
+use crate::ast::{Ast, Expr, FuncCall, Item, Local, Return, Stmt, TyId};
 use crate::ast::{ExprKind, Func};
 use crate::lexer::{Token, TokenKind};
 use TokenKind::*;
@@ -104,17 +104,37 @@ impl<'a> Parser<'a> {
         Stmt::Local(local)
     }
 
+    fn parse_return(&mut self) -> Stmt {
+        self.match_tok(Return);
+        let value = if self.peek_kind() == Semi {
+            None
+        } else {
+            Some(self.parse_expr())
+        };
+
+        Stmt::Return(Return { value })
+    }
+
     fn parse_stmt(&mut self) -> Stmt {
         let kind = self.peek_kind();
         let ret = match kind {
             Let => self.parse_local(),
+            Return => self.parse_return(),
             _ => Stmt::Expr(self.parse_expr()),
         };
         self.match_tok(Semi);
         ret
     }
 
-    fn parse_fn(&mut self) -> Func {
+    fn get_type(&self, name: &str) -> TyId {
+        match name {
+            "str" => Ast::TY_STR,
+            "i64" => Ast::TY_I64,
+            _ => unimplemented!(),
+        }
+    }
+
+    fn parse_func(&mut self) -> Func {
         self.match_tok(Fn);
         let name = self.match_tok(Ident);
         let name = self.get_string(&name);
@@ -126,13 +146,18 @@ impl<'a> Parser<'a> {
             self.match_tok(Colon);
             let ty_name = self.match_tok(Ident);
             let ty_name = self.get_string(&ty_name);
-            let ty = match ty_name.as_str() {
-                "str" => Ast::TY_STR,
-                _ => unimplemented!(),
-            };
+            let ty = self.get_type(&ty_name);
             args.push((arg_name, ty));
         }
         self.match_tok(ClosedParen);
+
+        let return_ty = if self.peek_kind() == Arrow {
+            self.match_tok(Arrow);
+            let name = self.match_tok_string(Ident);
+            self.get_type(&name)
+        } else {
+            Ast::TY_VOID
+        };
         let stmts = if self.peek_kind() == Semi {
             self.match_tok(Semi);
             None
@@ -149,7 +174,7 @@ impl<'a> Parser<'a> {
 
         Func {
             name,
-            return_ty: Ast::TY_VOID,
+            return_ty,
             args,
             stmts,
         }
@@ -162,7 +187,7 @@ impl<'a> Parser<'a> {
             let name;
             let item = match current {
                 Fn => {
-                    let func = self.parse_fn();
+                    let func = self.parse_func();
                     name = func.name.clone();
                     Item::Func(func)
                 }

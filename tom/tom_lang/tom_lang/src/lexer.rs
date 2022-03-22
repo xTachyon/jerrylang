@@ -1,8 +1,11 @@
+use TokenKind::*;
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum TokenKind {
     Ident,
     Fn,
     Let,
+    Return,
 
     OpenParen,
     ClosedParen,
@@ -21,6 +24,8 @@ pub enum TokenKind {
     Colon,
     Comma,
     Equal,
+
+    Arrow,
 
     NumberLit,
     StringLit,
@@ -121,22 +126,20 @@ impl Lexer {
     fn get_keyword(input: &[u8]) -> Option<TokenKind> {
         let input = std::str::from_utf8(input).unwrap();
         let ret = match input {
-            "fn" => TokenKind::Fn,
-            "let" => TokenKind::Let,
+            "fn" => Fn,
+            "let" => Let,
+            "return" => Return,
             _ => return None,
         };
         Some(ret)
     }
 
     fn run_one(&mut self) {
-        use TokenKind::*;
-
         let original_offset = self.offset;
         let ch = self.next();
 
         let kind = match ch {
             '+' => Plus,
-            '-' => Minus,
             '*' => Star,
             '/' => Slash,
             '%' => Percent,
@@ -150,13 +153,19 @@ impl Lexer {
             ']' => ClosedBracket,
             '{' => OpenBrace,
             '}' => ClosedBrace,
-            'a' ..= 'z' | 'A' ..= 'Z' | '_' => {
+            '-' => {
+                if self.peek() == '>' {
+                    self.next();
+                    Arrow
+                } else { Minus }
+            }
+            'a'..='z' | 'A'..='Z' | '_' => {
                 while Lexer::is_ident_continue(self.peek()) {
                     self.next();
                 }
                 Lexer::get_keyword(&self.text[original_offset..self.offset]).unwrap_or(Ident)
             }
-            '0' ..= '9' => {
+            '0'..='9' => {
                 while self.peek().is_ascii_digit() {
                     self.next();
                 }
