@@ -1,8 +1,22 @@
-pub struct Context {}
+use slotmap::{new_key_type, SlotMap};
+
+new_key_type! {
+    pub struct TyKey;
+}
+
+pub struct Context {
+    types: SlotMap<TyKey, Ty>,
+    pub ty_f64: TyKey,
+}
 
 impl Context {
     pub fn new() -> Context {
-        Context {}
+        let mut types = SlotMap::with_key();
+        let ty_f64 = types.insert(Ty::F64);
+        Context {
+            types: types,
+            ty_f64,
+        }
     }
 }
 
@@ -22,7 +36,6 @@ impl Module {
     }
 }
 
-
-pub struct Ty {
-    
+pub enum Ty {
+    F64,
 }
