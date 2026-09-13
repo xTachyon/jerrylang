@@ -1,2 +1,1 @@
-#[unsafe(no_mangle)]
-pub fn LLVMContextCreate() {}
+mod unimplemented_fns;

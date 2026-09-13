@@ -1,7 +1,6 @@
 [workspace]
-members = ["llvm_free_c",
-    "tom_lang",
-]
+members = ["llvm_free_c", "tom_lang"]
+resolver = "3"
 
 [profile.release]
 lto = true
