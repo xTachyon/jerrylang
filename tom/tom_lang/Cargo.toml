@@ -1,5 +1,5 @@
 [workspace]
-members = [
+members = ["llvm_free_c",
     "tom_lang",
 ]
 
