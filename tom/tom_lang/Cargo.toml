@@ -4,3 +4,7 @@ resolver = "3"
 
 [profile.release]
 lto = true
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

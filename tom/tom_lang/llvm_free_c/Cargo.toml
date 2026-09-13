@@ -7,3 +7,4 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
+llvm_free = { path = "../llvm_free" }

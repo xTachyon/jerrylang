@@ -3,7 +3,7 @@
 macro_rules! u {
     ($n:ident) => {
         #[unsafe(no_mangle)]
-        pub fn $n() {
+        pub extern "C" fn $n() {
             todo!(stringify!($n));
         }
     };
@@ -285,7 +285,6 @@ u! {
     LLVMOrcAbsoluteSymbols
     LLVMParseBitcode2
     LLVMGetParamTypes
-    LLVMModuleCreateWithNameInContext
     LLVMBuildCleanupPad
     LLVMBuildLShr
     LLVMIsAGlobalAlias
@@ -625,7 +624,6 @@ u! {
     LLVMGenericValueToInt
     LLVMGetPointerToGlobal
     LLVMConstRealOfString
-    LLVMGetDataLayoutStr
     LLVMDIBuilderCreateImportedDeclaration
     LLVMTargetMachineOptionsSetCPU
     LLVMCreateBuilder
@@ -885,7 +883,6 @@ u! {
     LLVMGEPSetNoWrapFlags
     LLVMRunFunctionAsMain
     LLVMInitializeMCJITCompilerOptions
-    LLVMDoubleTypeInContext
     LLVMCreatePassManager
     LLVMInitializeX86TargetMCA
     LLVMBuildFence
@@ -1108,7 +1105,6 @@ u! {
     LLVMIsABlockAddress
     LLVMIsInBounds
     LLVMInitializeMSP430TargetInfo
-    LLVMContextCreate
     LLVMEraseGlobalIFunc
     LLVMGetUnwindDest
     LLVMDIBuilderCreateCompileUnit
@@ -1242,7 +1238,6 @@ u! {
     LLVMInitializeXCoreDisassembler
     LLVMPassBuilderOptionsSetLicmMssaOptCap
     LLVMAppendExistingBasicBlock
-    LLVMCreateBuilderInContext
     LLVMOrcExecutionSessionSetErrorReporter
     LLVMBuildNot
     LLVMBuildInsertValue
