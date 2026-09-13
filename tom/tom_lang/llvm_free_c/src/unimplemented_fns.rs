@@ -266,7 +266,6 @@ u! {
     LLVMGetIntTypeWidth
     LLVMGetICmpSameSign
     LLVMIsAFenceInst
-    LLVMFunctionType
     LLVMPrintModuleToFile
     LLVMGetFirstNamedMetadata
     LLVMGetFirstGlobalIFunc
@@ -719,7 +718,6 @@ u! {
     LLVMAppendBasicBlockInContext
     LLVMInitializeRISCVTargetMCA
     LLVMBuildStore
-    LLVMIsAFunction
     LLVMGetConstOpcode
     LLVMCountStructElementTypes
     LLVMBuildAlloca
@@ -1288,7 +1286,6 @@ u! {
     LLVMBuildIntToPtr
     LLVMGetFirstUse
     LLVMGetLastDbgRecord
-    LLVMAddFunction
     LLVMAddDestination
     LLVMIsAInstruction
     LLVMGetDebugLocDirectory

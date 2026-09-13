@@ -1,17 +1,13 @@
 use std::ffi::{CStr, c_char};
 
-use llvm_free::TyKey;
-use slotmap::Key;
+use llvm_free::{Ty, TyKey, ValueKey};
+use slotmap::{Key, KeyData};
 
-use crate::context::{LLVMBool, LLVMTypeRef};
+use crate::context::{LLVMBool, LLVMTypeRef, LLVMValueRef};
 
 pub unsafe fn unwrap_s<'a>(x: *const c_char) -> &'a str {
     assert!(!x.is_null());
     unsafe { CStr::from_ptr(x).to_str().unwrap() }
-}
-
-pub fn wrap_ty(ty: TyKey) -> LLVMTypeRef {
-    ty.data().as_ffi() as *const _
 }
 
 pub fn unwrap_bool(x: LLVMBool) -> bool {
@@ -25,4 +21,12 @@ pub fn unwrap_slice<'a, T, I: Into<u64>>(ptr: *const T, s: I) -> &'a [T] {
     } else {
         unsafe { std::slice::from_raw_parts(ptr, len) }
     }
+}
+
+pub unsafe fn unwrap_ty(ty: LLVMTypeRef) -> TyKey {
+    unsafe { &*ty }.ty
+}
+
+pub fn wrap_value(v: ValueKey) -> LLVMValueRef {
+    v.data().as_ffi() as LLVMValueRef
 }
